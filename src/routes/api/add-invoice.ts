@@ -19,9 +19,12 @@ export const Route = createFileRoute('/api/add-invoice')({
           .from('invoices')
           .insert([
             {
-              customer: body.customer,
+              user_id: body.user_id,
+              account_id: body.account_id,
+              invoice_date: body.invoice_date,
               amount: body.amount,
-              status: body.status
+              vendor_id: body.vendor_id,
+              created_date: new Date()
             }
           ])
 
