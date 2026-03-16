@@ -176,17 +176,14 @@ export function InvoiceForm(props: InvoiceFormProps) {
 }
 
 const Label = twc.label`
-  block mb-2
+  block mb-1
   font-medium text-sm
-  text-gray-900
+  text-gray-700
 `;
 
 const Input = twc.input`
-  block w-full rounded-md bg-white
-  px-3 py-1.5
-  text-base text-gray-900
-  outline-1 -outline-offset-1 outline-gray-300
-  placeholder:text-gray-400
-  focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600
-  sm:text-sm/6
+  block w-full rounded-sm
+  border-gray-300 focus:border-gray-400
+  focus:ring-4 focus:ring-gray-300 focus:ring-opacity-50
+  transition-shadow
 `;
