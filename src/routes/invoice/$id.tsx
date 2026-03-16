@@ -4,13 +4,14 @@ import { valibotValidator } from "@tanstack/valibot-adapter";
 import * as v from "valibot";
 
 import { supabase } from "#/lib/supabase";
+import { IntStrSchema } from "#/lib/validation";
 
 const FetchInvoiceSchema = v.object({
   id: v.pipe(v.number(), v.integer()),
 });
 
 const FetchInvoiceRouteSchema = v.object({
-  id: v.pipe(v.string(), v.transform(parseInt), FetchInvoiceSchema.entries.id),
+  id: v.pipe(IntStrSchema, FetchInvoiceSchema.entries.id),
 });
 
 export const Route = createFileRoute("/invoice/$id")({

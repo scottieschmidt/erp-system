@@ -6,6 +6,7 @@ import { twc } from "react-twc";
 import * as v from "valibot";
 
 import { supabase } from "#/lib/supabase";
+import { IntStrSchema, NumStrSchema } from "#/lib/validation";
 
 export const Route = createFileRoute("/invoice/new")({
   component: NewInvoice,
@@ -20,11 +21,11 @@ const InvoiceSchema = v.object({
 });
 
 const InvoiceFormSchema = v.object({
-  user_id: v.pipe(v.string(), v.transform(parseInt), InvoiceSchema.entries.user_id),
-  account_id: v.pipe(v.string(), v.transform(parseInt), InvoiceSchema.entries.account_id),
-  vendor_id: v.pipe(v.string(), v.transform(parseInt), InvoiceSchema.entries.vendor_id),
-  invoice_date: v.string(),
-  amount: v.pipe(v.string(), v.transform(parseFloat), InvoiceSchema.entries.amount),
+  user_id: v.pipe(IntStrSchema, InvoiceSchema.entries.user_id),
+  account_id: v.pipe(IntStrSchema, InvoiceSchema.entries.account_id),
+  vendor_id: v.pipe(IntStrSchema, InvoiceSchema.entries.vendor_id),
+  invoice_date: InvoiceSchema.entries.invoice_date,
+  amount: v.pipe(NumStrSchema, InvoiceSchema.entries.amount),
 });
 
 const createInvoice = createServerFn()
