@@ -14,7 +14,10 @@ const createInvoice = createServerFn()
   .middleware([database])
   .inputValidator(DataSchema)
   .handler(async ({ data, context }) => {
-    await context.db.insert(t.invoices).values(data);
+    await context.db.insert(t.invoices).values({
+      ...data,
+      created_date: formatDate(new Date()),
+    });
   });
 
 function NewInvoice() {
