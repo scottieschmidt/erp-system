@@ -11,11 +11,10 @@ export const Route = createFileRoute("/invoice/new")({
 });
 
 const createInvoice = createServerFn()
+  .middleware([database])
   .inputValidator(DataSchema)
-  .handler(async ({ data }) => {
-    const db = database();
-
-    await db.insert(t.invoices).values(data);
+  .handler(async ({ data, context }) => {
+    await context.db.insert(t.invoices).values(data);
   });
 
 function NewInvoice() {

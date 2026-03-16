@@ -30,11 +30,10 @@ export const Route = createFileRoute("/invoice/$id")({
 });
 
 const fetchInvoice = createServerFn()
+  .middleware([database])
   .inputValidator(FetchInvoiceSchema)
-  .handler(async ({ data }) => {
-    const db = database();
-
-    const invoice = await db
+  .handler(async ({ data, context }) => {
+    const invoice = await context.db
       .select()
       .from(t.invoices)
       .where(eq(t.invoices.invoice_id, data.id))
@@ -49,11 +48,10 @@ const fetchInvoice = createServerFn()
   });
 
 const updateInvoice = createServerFn()
+  .middleware([database])
   .inputValidator(UpdateInvoiceSchema)
-  .handler(async ({ data }) => {
-    const db = database();
-
-    await db.update(t.invoices).set(data.value).where(eq(t.invoices.invoice_id, data.id));
+  .handler(async ({ data, context }) => {
+    await context.db.update(t.invoices).set(data.value).where(eq(t.invoices.invoice_id, data.id));
   });
 
 function ShowInvoice() {
