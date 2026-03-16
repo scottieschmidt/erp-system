@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Zap, Server, Route as RouteIcon, Shield, Waves, Sparkles } from "lucide-react";
+import { Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute("/")({ component: App });
 
 function App() {
   const features = [
-    {
-      icon: <Server className="h-12 w-12 text-cyan-400" />,
-      title: "Test",
-      description: "test.",
-    },
+  {
+    icon: <Server className="h-12 w-12 text-cyan-400" />,
+    title: "Register",
+    description: "Signup Account",
+    link: "/register"
+  },
     {
       icon: <Server className="h-12 w-12 text-cyan-400" />,
       title: "Flexible Server Side Rendering",
