@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SupabaseTestRouteImport } from './routes/supabase-test'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InvoiceNewRouteImport } from './routes/invoice/new'
+import { Route as InvoiceIdRouteImport } from './routes/invoice/$id'
 
 const SupabaseTestRoute = SupabaseTestRouteImport.update({
   id: '/supabase-test',
@@ -22,31 +24,49 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoiceNewRoute = InvoiceNewRouteImport.update({
+  id: '/invoice/new',
+  path: '/invoice/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoiceIdRoute = InvoiceIdRouteImport.update({
+  id: '/invoice/$id',
+  path: '/invoice/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/invoice/$id': typeof InvoiceIdRoute
+  '/invoice/new': typeof InvoiceNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/invoice/$id': typeof InvoiceIdRoute
+  '/invoice/new': typeof InvoiceNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/invoice/$id': typeof InvoiceIdRoute
+  '/invoice/new': typeof InvoiceNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/supabase-test'
+  fullPaths: '/' | '/supabase-test' | '/invoice/$id' | '/invoice/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/supabase-test'
-  id: '__root__' | '/' | '/supabase-test'
+  to: '/' | '/supabase-test' | '/invoice/$id' | '/invoice/new'
+  id: '__root__' | '/' | '/supabase-test' | '/invoice/$id' | '/invoice/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SupabaseTestRoute: typeof SupabaseTestRoute
+  InvoiceIdRoute: typeof InvoiceIdRoute
+  InvoiceNewRoute: typeof InvoiceNewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +85,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invoice/new': {
+      id: '/invoice/new'
+      path: '/invoice/new'
+      fullPath: '/invoice/new'
+      preLoaderRoute: typeof InvoiceNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoice/$id': {
+      id: '/invoice/$id'
+      path: '/invoice/$id'
+      fullPath: '/invoice/$id'
+      preLoaderRoute: typeof InvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SupabaseTestRoute: SupabaseTestRoute,
+  InvoiceIdRoute: InvoiceIdRoute,
+  InvoiceNewRoute: InvoiceNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

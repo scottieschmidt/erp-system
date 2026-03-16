@@ -9,13 +9,7 @@ export const Route = createFileRoute("/supabase-test")({
 });
 
 export const fetchRows = createServerFn().handler(async () => {
-  const response = await supabase.from("invoices").select("*").limit(5);
-
-  if (response.error) {
-    throw response.error;
-  }
-
-  return response.data;
+  return await supabase.from("invoices").select("*").limit(5).throwOnError();
 });
 
 function SupabaseTestPage() {
@@ -29,14 +23,14 @@ function SupabaseTestPage() {
     setRows([]);
 
     try {
-      const data = await fetchRows();
+      const response = await fetchRows();
 
       setStatus("Supabase database connected");
-      setDetails(`Returned ${data?.length ?? 0} row(s)`);
-      setRows(data ?? []);
-    } catch (err) {
+      setDetails(`Returned ${response.data.length} row(s)`);
+      setRows(response.data ?? []);
+    } catch (error: any) {
       setStatus("Connection failed");
-      setDetails(err instanceof Error ? err.message : "Unknown error");
+      setDetails(error.message ?? String(error));
     }
   };
 
