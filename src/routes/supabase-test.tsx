@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { desc } from "drizzle-orm";
 import { useState } from "react";
 
 import { database, t } from "#/lib/database";
@@ -11,8 +12,7 @@ export const Route = createFileRoute("/supabase-test")({
 export const fetchRows = createServerFn()
   .middleware([database])
   .handler(async ({ context }) => {
-    const { db } = context;
-    return await db.select().from(t.invoices).limit(5);
+    return await context.db.select().from(t.invoices).orderBy(desc(t.invoices.invoice_id)).limit(5);
   });
 
 function SupabaseTestPage() {

@@ -46,7 +46,7 @@ export const invoices = pgTable("invoices", {
 });
 
 export const gl_accounts = pgTable("gl_accounts", {
-  account_id: bigint({ mode: "number" }).primaryKey().notNull(),
+  account_id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity(),
   account_name: varchar({ length: 100 }).notNull(),
   account_type: varchar({ length: 20 }).notNull(),
   is_active: boolean().default(true).notNull(),
