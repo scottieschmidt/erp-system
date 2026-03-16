@@ -135,4 +135,4 @@ function RegisterPage() {
       </section>
     </main>
   );
-}
+}  //Got error failed to fetch
