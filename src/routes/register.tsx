@@ -1,37 +1,35 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 
-export const Route = createFileRoute('/register')({
+export const Route = createFileRoute("/register")({
   component: RegisterPage,
-})
+});
 
 function RegisterPage() {
   const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role_id: '',
-    dept_id: '',
-  })
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+    name: "",
+    email: "",
+    password: "",
+    role_id: "",
+    dept_id: "",
+  });
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMessage('')
+    e.preventDefault();
+    setMessage("");
 
     try {
-      setLoading(true)
+      setLoading(true);
 
-      const res = await fetch('http://127.0.0.1:8000/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("http://127.0.0.1:8000/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
           email: form.email,
@@ -39,33 +37,33 @@ function RegisterPage() {
           role_id: form.role_id ? Number(form.role_id) : null,
           dept_id: form.dept_id ? Number(form.dept_id) : null,
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.detail || 'Register failed')
-        return
+        setMessage(data.detail || "Register failed");
+        return;
       }
 
-      setMessage('User registered successfully')
+      setMessage("User registered successfully");
       setForm({
-        name: '',
-        email: '',
-        password: '',
-        role_id: '',
-        dept_id: '',
-      })
+        name: "",
+        email: "",
+        password: "",
+        role_id: "",
+        dept_id: "",
+      });
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Something went wrong')
+      setMessage(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <main className="page-wrap flex min-h-screen items-center justify-center px-4 pb-8 pt-14">
-      <section className="island-shell max-w-xl rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
+    <main className="page-wrap flex min-h-screen items-center justify-center px-4 pt-14 pb-8">
+      <section className="island-shell max-w-xl rounded-4xl px-6 py-10 sm:px-10 sm:py-14">
         <h1 className="mb-6 text-3xl font-bold">Register</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,12 +127,12 @@ function RegisterPage() {
             disabled={loading}
             className="rounded-full border px-5 py-2.5 font-semibold"
           >
-            {loading ? 'Registering...' : 'Register'}
+            {loading ? "Registering..." : "Register"}
           </button>
         </form>
 
         {message && <p className="mt-4 text-sm">{message}</p>}
       </section>
     </main>
-  )
+  );
 }
