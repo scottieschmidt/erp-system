@@ -8,10 +8,12 @@ export const Route = createFileRoute("/supabase-test")({
   component: SupabaseTestPage,
 });
 
-export const fetchRows = createServerFn().handler(async () => {
-  const db = database();
-  return await db.select().from(t.invoices).limit(5);
-});
+export const fetchRows = createServerFn()
+  .middleware([database])
+  .handler(async ({ context }) => {
+    const { db } = context;
+    return await db.select().from(t.invoices).limit(5);
+  });
 
 function SupabaseTestPage() {
   const [status, setStatus] = useState("Not tested yet");
