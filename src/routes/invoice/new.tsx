@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { database, t } from "#/lib/database";
 import { formatDate } from "#/lib/utils";
 
-import { DataSchema, InvoiceForm } from "./_form";
+import { DataSchema, InvoiceForm } from "./-form";
 
 export const Route = createFileRoute("/invoice/new")({
   component: NewInvoice,

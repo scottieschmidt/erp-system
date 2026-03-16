@@ -8,7 +8,7 @@ import { database, t } from "#/lib/database";
 import { formatDate } from "#/lib/utils";
 import { IntStrSchema } from "#/lib/validation";
 
-import { DataSchema, InvoiceForm } from "./_form";
+import { DataSchema, InvoiceForm } from "./-form";
 
 const RoutePathSchema = v.object({
   id: v.pipe(IntStrSchema, v.integer()),
