@@ -53,7 +53,7 @@ export default function Header() {
           </Link>
 
           <Link
-            to="/register"
+            to="/erp/register"
             onClick={() => setIsOpen(false)}
             className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
             activeProps={{
