@@ -1,0 +1,47 @@
+Supabase Register Fix (for "Failed to fetch")
+============================================
+
+Problem
+-------
+The register page was calling a hardcoded backend URL:
+
+  http://127.0.0.1:8000/api/register
+
+This causes "Failed to fetch" when the Python API is not reachable
+from the browser (or CORS blocks it).
+
+
+Fix Applied
+-----------
+1) Removed hardcoded fetch() call to 127.0.0.1:8000 in:
+   src/routes/erp/register.tsx
+
+2) Added Supabase signup in the register handler:
+   supabaseBrowser.auth.signUp({
+     email,
+     password,
+     options: { data: { name } }
+   })
+
+3) Added in-app server function (TanStack createServerFn) to insert
+   role_id and dept_id into users table through existing DB middleware.
+
+4) Added clear error when Supabase client env vars are missing.
+
+
+Required Environment Variables
+------------------------------
+- VITE_SUPABASE_URL
+- VITE_SUPABASE_ANON_KEY
+
+
+How to verify
+-------------
+1) npm install
+2) npm run dev
+3) Open /erp/register
+4) Submit registration form
+5) Expected:
+   - No "Failed to fetch" from localhost:8000
+   - Signup succeeds (or prompts email confirmation depending on Supabase settings)
+
