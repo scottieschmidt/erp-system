@@ -1,11 +1,26 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+
+import { database, t } from "#/lib/database";
+import { supabaseBrowser } from "#/lib/supabaseBrowser";
 
 export const Route = createFileRoute("/erp/register")({
   component: Register,
 });
 
 type Status = "idle" | "loading" | "success" | "error";
+
+const createUserRecord = createServerFn({ method: "POST" })
+  .middleware([database])
+  .handler(async ({ data, context }) => {
+    const payload = data as { role_id: number | null; dept_id: number | null };
+
+    await context.db.insert(t.users).values({
+      role_id: payload.role_id,
+      dept_id: payload.dept_id,
+    });
+  });
 
 function Register() {
   const navigate = useNavigate();
@@ -29,26 +44,37 @@ function Register() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-          role_id: form.role_id ? Number(form.role_id) : null,
-          dept_id: form.dept_id ? Number(form.dept_id) : null,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Register failed");
+      if (!supabaseBrowser) {
+        throw new Error("Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
       }
 
+      const { data: authData, error: authError } = await supabaseBrowser.auth.signUp({
+        email: form.email.trim(),
+        password: form.password,
+        options: {
+          data: {
+            name: form.name.trim(),
+          },
+        },
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      await createUserRecord({
+        data: {
+          role_id: form.role_id ? Number(form.role_id) : null,
+          dept_id: form.dept_id ? Number(form.dept_id) : null,
+        },
+      });
+
       setStatus("success");
-      setMessage("User registered successfully. You can now sign in.");
+      setMessage(
+        authData.session
+          ? "User registered successfully. You can now sign in."
+          : "User registered. Check your email to confirm your account, then sign in.",
+      );
       setForm({ name: "", email: "", password: "", role_id: "", dept_id: "" });
     } catch (err: any) {
       setStatus("error");
