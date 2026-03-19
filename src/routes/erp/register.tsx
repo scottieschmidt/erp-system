@@ -6,6 +6,8 @@ export const Route = createFileRoute("/erp/register")({
 });
 
 type Status = "idle" | "loading" | "success" | "error";
+const apiBaseUrl = import.meta.env.VITE_ERP_API_BASE_URL?.trim().replace(/\/$/, "");
+const registerEndpoint = apiBaseUrl ? `${apiBaseUrl}/api/register` : "/api/register";
 
 function Register() {
   const navigate = useNavigate();
@@ -29,7 +31,7 @@ function Register() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/register", {
+      const res = await fetch(registerEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -41,18 +43,32 @@ function Register() {
         }),
       });
 
-      const data = await res.json();
+      const rawBody = await res.text();
+      let data: { detail?: string; message?: string } | null = null;
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as { detail?: string; message?: string };
+        } catch {
+          // Non-JSON error bodies should still show a useful fallback message.
+        }
+      }
 
       if (!res.ok) {
-        throw new Error(data.detail || "Register failed");
+        throw new Error(data?.detail || data?.message || `Register failed (${res.status})`);
       }
 
       setStatus("success");
       setMessage("User registered successfully. You can now sign in.");
       setForm({ name: "", email: "", password: "", role_id: "", dept_id: "" });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus("error");
-      setMessage(err?.message ?? "Something went wrong");
+      if (err instanceof TypeError && /fetch/i.test(err.message)) {
+        setMessage("Unable to reach the registration service. Check your API URL and backend status.");
+      } else if (err instanceof Error) {
+        setMessage(err.message);
+      } else {
+        setMessage("Something went wrong");
+      }
     } finally {
       setStatus((prev) => (prev === "success" ? prev : "idle"));
     }
