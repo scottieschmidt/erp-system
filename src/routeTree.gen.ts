@@ -14,8 +14,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoiceNewRouteImport } from './routes/invoice/new'
 import { Route as InvoiceIdRouteImport } from './routes/invoice/$id'
 import { Route as ErpRegisterRouteImport } from './routes/erp/register'
+import { Route as ErpNewUser1RouteImport } from './routes/erp/new-user1'
+import { Route as ErpNewUserRouteImport } from './routes/erp/new-user'
 import { Route as ErpLoginRouteImport } from './routes/erp/login'
 import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
+import { Route as ErpInsertUserRouteImport } from './routes/erp/insert-user'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
 
 const SupabaseTestRoute = SupabaseTestRouteImport.update({
@@ -43,6 +46,16 @@ const ErpRegisterRoute = ErpRegisterRouteImport.update({
   path: '/erp/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpNewUser1Route = ErpNewUser1RouteImport.update({
+  id: '/erp/new-user1',
+  path: '/erp/new-user1',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErpNewUserRoute = ErpNewUserRouteImport.update({
+  id: '/erp/new-user',
+  path: '/erp/new-user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ErpLoginRoute = ErpLoginRouteImport.update({
   id: '/erp/login',
   path: '/erp/login',
@@ -51,6 +64,11 @@ const ErpLoginRoute = ErpLoginRouteImport.update({
 const ErpInvoiceRoute = ErpInvoiceRouteImport.update({
   id: '/erp/invoice',
   path: '/erp/invoice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErpInsertUserRoute = ErpInsertUserRouteImport.update({
+  id: '/erp/insert-user',
+  path: '/erp/insert-user',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ErpDashboardRoute = ErpDashboardRouteImport.update({
@@ -63,8 +81,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/insert-user': typeof ErpInsertUserRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-user1': typeof ErpNewUser1Route
   '/erp/register': typeof ErpRegisterRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
@@ -73,8 +94,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/insert-user': typeof ErpInsertUserRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-user1': typeof ErpNewUser1Route
   '/erp/register': typeof ErpRegisterRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
@@ -84,8 +108,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
+  '/erp/insert-user': typeof ErpInsertUserRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
+  '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-user1': typeof ErpNewUser1Route
   '/erp/register': typeof ErpRegisterRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
@@ -96,8 +123,11 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
+    | '/erp/insert-user'
     | '/erp/invoice'
     | '/erp/login'
+    | '/erp/new-user'
+    | '/erp/new-user1'
     | '/erp/register'
     | '/invoice/$id'
     | '/invoice/new'
@@ -106,8 +136,11 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
+    | '/erp/insert-user'
     | '/erp/invoice'
     | '/erp/login'
+    | '/erp/new-user'
+    | '/erp/new-user1'
     | '/erp/register'
     | '/invoice/$id'
     | '/invoice/new'
@@ -116,8 +149,11 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
+    | '/erp/insert-user'
     | '/erp/invoice'
     | '/erp/login'
+    | '/erp/new-user'
+    | '/erp/new-user1'
     | '/erp/register'
     | '/invoice/$id'
     | '/invoice/new'
@@ -127,8 +163,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SupabaseTestRoute: typeof SupabaseTestRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
+  ErpInsertUserRoute: typeof ErpInsertUserRoute
   ErpInvoiceRoute: typeof ErpInvoiceRoute
   ErpLoginRoute: typeof ErpLoginRoute
+  ErpNewUserRoute: typeof ErpNewUserRoute
+  ErpNewUser1Route: typeof ErpNewUser1Route
   ErpRegisterRoute: typeof ErpRegisterRoute
   InvoiceIdRoute: typeof InvoiceIdRoute
   InvoiceNewRoute: typeof InvoiceNewRoute
@@ -171,6 +210,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp/new-user1': {
+      id: '/erp/new-user1'
+      path: '/erp/new-user1'
+      fullPath: '/erp/new-user1'
+      preLoaderRoute: typeof ErpNewUser1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/erp/new-user': {
+      id: '/erp/new-user'
+      path: '/erp/new-user'
+      fullPath: '/erp/new-user'
+      preLoaderRoute: typeof ErpNewUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/erp/login': {
       id: '/erp/login'
       path: '/erp/login'
@@ -183,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/erp/invoice'
       fullPath: '/erp/invoice'
       preLoaderRoute: typeof ErpInvoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/erp/insert-user': {
+      id: '/erp/insert-user'
+      path: '/erp/insert-user'
+      fullPath: '/erp/insert-user'
+      preLoaderRoute: typeof ErpInsertUserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/erp/dashboard': {
@@ -199,8 +259,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SupabaseTestRoute: SupabaseTestRoute,
   ErpDashboardRoute: ErpDashboardRoute,
+  ErpInsertUserRoute: ErpInsertUserRoute,
   ErpInvoiceRoute: ErpInvoiceRoute,
   ErpLoginRoute: ErpLoginRoute,
+  ErpNewUserRoute: ErpNewUserRoute,
+  ErpNewUser1Route: ErpNewUser1Route,
   ErpRegisterRoute: ErpRegisterRoute,
   InvoiceIdRoute: InvoiceIdRoute,
   InvoiceNewRoute: InvoiceNewRoute,
