@@ -27,6 +27,7 @@ function App() {
     {
       icon: <Shield className="h-12 w-12 text-cyan-400" />,
       title: "Add Vendor",
+       link: "/erp/new-vendor",
       description:
         "Click here to add a new vendor who needs to be paid.",
     },
