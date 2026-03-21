@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { database, t } from "#/lib/database";
 import { supabaseBrowser } from "#/lib/supabaseBrowser";
 
-export const Route = createFileRoute("/erp/new-user1")({
+export const Route = createFileRoute("/erp/new-user7")({
   component: Register,
 });
 
@@ -28,10 +28,10 @@ const DEPT_OPTIONS = [
   { id: 6, label: "Operations" },
 ] as const;
 
-const parseRequiredInt = (value: string, fieldLabel: string): number => {
+const parseRequiredInt = (value: string, label: string): number => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed)) {
-    throw new Error(`Please select a valid ${fieldLabel}.`);
+    throw new Error(`Please select a valid ${label}.`);
   }
   return parsed;
 };
@@ -40,13 +40,19 @@ const createUserRecord = createServerFn({ method: "POST" })
   .middleware([database])
   .handler(async ({ data, context }) => {
     const payload = data as {
-      user_id: string;
+      full_name: string;
       role_id: number;
       dept_id: number;
     };
 
+    const fullName = payload.full_name?.trim();
+
+    if (!fullName) throw new Error("Full name is required.");
+    if (!Number.isInteger(payload.role_id)) throw new Error("Invalid role.");
+    if (!Number.isInteger(payload.dept_id)) throw new Error("Invalid department.");
+
     await context.db.insert(t.users).values({
-      user_id: payload.user_id,
+      full_name: fullName,
       role_id: payload.role_id,
       dept_id: payload.dept_id,
     });
@@ -57,7 +63,7 @@ function Register() {
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
-    name: "",
+    full_name: "",
     email: "",
     password: "",
     role_id: "",
@@ -79,8 +85,11 @@ function Register() {
 
     try {
       if (!supabaseBrowser) {
-        throw new Error("Supabase is not configured. Check environment variables.");
+        throw new Error("Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
       }
+
+      const fullName = form.full_name.trim();
+      if (!fullName) throw new Error("Full name is required.");
 
       const roleId = parseRequiredInt(form.role_id, "role");
       const deptId = parseRequiredInt(form.dept_id, "department");
@@ -89,22 +98,15 @@ function Register() {
         email: form.email.trim(),
         password: form.password,
         options: {
-          data: { name: form.name.trim() },
+          data: { full_name: fullName },
         },
       });
 
-      if (authError) {
-        throw authError;
-      }
-
-      const userId = authData.user?.id;
-      if (!userId) {
-        throw new Error("Signup succeeded but no auth user id was returned.");
-      }
+      if (authError) throw authError;
 
       await createUserRecord({
         data: {
-          user_id: userId,
+          full_name: fullName,
           role_id: roleId,
           dept_id: deptId,
         },
@@ -116,7 +118,14 @@ function Register() {
           ? "User registered successfully. You can now sign in."
           : "User registered. Check your email to confirm your account, then sign in.",
       );
-      setForm({ name: "", email: "", password: "", role_id: "", dept_id: "" });
+
+      setForm({
+        full_name: "",
+        email: "",
+        password: "",
+        role_id: "",
+        dept_id: "",
+      });
     } catch (err: unknown) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : "Something went wrong.");
@@ -136,8 +145,8 @@ function Register() {
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <Field label="Full name">
               <input
-                name="name"
-                value={form.name}
+                name="full_name"
+                value={form.full_name}
                 onChange={handleChange}
                 required
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
