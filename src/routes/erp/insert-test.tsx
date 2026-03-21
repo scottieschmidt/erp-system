@@ -69,4 +69,8 @@ function InsertTestPage() {
       )}
     </div>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> d91909d (feat: add new vendor route)

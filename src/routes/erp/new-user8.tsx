@@ -5,28 +5,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { database, t } from "#/lib/database";
 import { supabaseBrowser } from "#/lib/supabaseBrowser";
 
-export const Route = createFileRoute("/erp/new-user1")({
+export const Route = createFileRoute("/erp/new-user8")({
   component: Register,
 });
 
 type Status = "idle" | "loading" | "success" | "error";
-
-const ROLE_OPTIONS = [
-  { id: 1, label: "Admin" },
-  { id: 2, label: "Accounting" },
-  { id: 3, label: "Manager" },
-  { id: 4, label: "Employee" },
-  { id: 5, label: "Read Only" },
-] as const;
-
-const DEPT_OPTIONS = [
-  { id: 1, label: "Accounting" },
-  { id: 2, label: "Finance" },
-  { id: 3, label: "Human Resources" },
-  { id: 4, label: "Information Technology" },
-  { id: 5, label: "Procurement" },
-  { id: 6, label: "Operations" },
-] as const;
 
 const parseRequiredInt = (value: string, fieldLabel: string): number => {
   const parsed = Number.parseInt(value, 10);
@@ -39,14 +22,9 @@ const parseRequiredInt = (value: string, fieldLabel: string): number => {
 const createUserRecord = createServerFn({ method: "POST" })
   .middleware([database])
   .handler(async ({ data, context }) => {
-    const payload = data as {
-      user_id: string;
-      role_id: number;
-      dept_id: number;
-    };
+    const payload = data as { role_id: number; dept_id: number };
 
     await context.db.insert(t.users).values({
-      user_id: payload.user_id,
       role_id: payload.role_id,
       dept_id: payload.dept_id,
     });
@@ -65,11 +43,7 @@ function Register() {
   });
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    if (status !== "idle") {
-      setStatus("idle");
-      setMessage("");
-    }
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -79,7 +53,7 @@ function Register() {
 
     try {
       if (!supabaseBrowser) {
-        throw new Error("Supabase is not configured. Check environment variables.");
+        throw new Error("Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
       }
 
       const roleId = parseRequiredInt(form.role_id, "role");
@@ -89,7 +63,9 @@ function Register() {
         email: form.email.trim(),
         password: form.password,
         options: {
-          data: { name: form.name.trim() },
+          data: {
+            name: form.name.trim(),
+          },
         },
       });
 
@@ -97,14 +73,8 @@ function Register() {
         throw authError;
       }
 
-      const userId = authData.user?.id;
-      if (!userId) {
-        throw new Error("Signup succeeded but no auth user id was returned.");
-      }
-
       await createUserRecord({
         data: {
-          user_id: userId,
           role_id: roleId,
           dept_id: deptId,
         },
@@ -117,14 +87,16 @@ function Register() {
           : "User registered. Check your email to confirm your account, then sign in.",
       );
       setForm({ name: "", email: "", password: "", role_id: "", dept_id: "" });
-    } catch (err: unknown) {
+    } catch (err: any) {
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Something went wrong.");
+      setMessage(err?.message ?? "Something went wrong");
+    } finally {
+      setStatus((prev) => (prev === "success" ? prev : "idle"));
     }
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.08),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_30%),linear-gradient(135deg,#0f172a,#0b1224)] px-4 py-10 text-slate-100">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.08),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_30%),linear-gradient(135deg,#0f172a,#0b1224)] text-slate-100 px-4 py-10">
       <div className="mx-auto max-w-lg">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
           <div className="mb-3 inline-flex rounded-full border border-white/15 px-3 py-1 text-xs tracking-[0.1em] text-slate-300">
@@ -143,7 +115,6 @@ function Register() {
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
               />
             </Field>
-
             <Field label="Email">
               <input
                 name="email"
@@ -154,7 +125,6 @@ function Register() {
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
               />
             </Field>
-
             <Field label="Password">
               <input
                 name="password"
@@ -165,7 +135,6 @@ function Register() {
                 className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
               />
             </Field>
-
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Role">
                 <select
@@ -176,14 +145,13 @@ function Register() {
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
                 >
                   <option value="">Select role</option>
-                  {ROLE_OPTIONS.map((role) => (
-                    <option key={role.id} value={String(role.id)}>
-                      {role.label}
-                    </option>
-                  ))}
+                  <option value="1">Admin</option>
+                  <option value="2">Accounting</option>
+                  <option value="3">Manager</option>
+                  <option value="4">Employee</option>
+                  <option value="5">Read Only</option>
                 </select>
               </Field>
-
               <Field label="Department">
                 <select
                   name="dept_id"
@@ -193,11 +161,12 @@ function Register() {
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/70 focus:ring-4 focus:ring-cyan-400/15"
                 >
                   <option value="">Select department</option>
-                  {DEPT_OPTIONS.map((dept) => (
-                    <option key={dept.id} value={String(dept.id)}>
-                      {dept.label}
-                    </option>
-                  ))}
+                  <option value="1">Accounting</option>
+                  <option value="2">Finance</option>
+                  <option value="3">Human Resources</option>
+                  <option value="4">Information Technology</option>
+                  <option value="5">Procurement</option>
+                  <option value="6">Operations</option>
                 </select>
               </Field>
             </div>
@@ -219,7 +188,7 @@ function Register() {
               disabled={status === "loading"}
               className="inline-flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {status === "loading" ? "Creating account..." : "Create account"}
+              {status === "loading" ? "Creating account…" : "Create account"}
             </button>
           </form>
 
@@ -246,4 +215,4 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
-}
+} 
