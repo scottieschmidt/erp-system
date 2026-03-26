@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import z from "zod";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
+import { supabase } from "#/lib/supabase";
 
 export const Route = createFileRoute("/erp/invoice")({
   component: InvoicePage,
@@ -16,6 +18,38 @@ type LineItem = {
 };
 
 type Customer = { id: string; name: string };
+
+const InvoiceInsert = z.object({
+  invoice_number: z.string(),
+  date: z.string(),
+  due_date: z.string(),
+  customer: z.string(),
+  subtotal: z.number(),
+  tax: z.number(),
+  total: z.number(),
+  status: z.string(),
+  line_items: z.array(
+    z.object({
+      description: z.string(),
+      quantity: z.number(),
+      price: z.number(),
+      tax_rate: z.number(),
+    }),
+  ),
+});
+
+const fetchVendors = createServerFn().handler(async () => {
+  const { data, error } = await supabase.from("vendor").select("vendor_id, vendor_name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
+});
+
+const saveInvoice = createServerFn()
+  .inputValidator(InvoiceInsert)
+  .handler(async ({ data }) => {
+    const { error } = await supabase.from("invoices").insert([data]);
+    if (error) throw new Error(error.message);
+  });
 
 function InvoicePage() {
   const navigate = useNavigate();
@@ -49,14 +83,11 @@ function InvoicePage() {
 
   async function loadCustomers() {
     try {
-      if (supabaseBrowser) {
-        const { data, error } = await supabaseBrowser.from("vendor").select("vendor_id, vendor_name");
-        if (!error && data) {
-          setCustomers(data.map((v) => ({ id: String(v.vendor_id), name: v.vendor_name })));
-          return;
-        }
-      }
-    } catch {
+      const data = await fetchVendors();
+      setCustomers(data.map((v: any) => ({ id: String(v.vendor_id), name: v.vendor_name })));
+      return;
+    } catch (err) {
+      console.error(err);
       // fall back below
     }
 
@@ -120,10 +151,9 @@ function InvoicePage() {
     };
 
     try {
-      if (supabaseBrowser) {
-        await supabaseBrowser.from("invoices").insert([invoiceData]);
-      }
-    } catch {
+      await saveInvoice({ data: invoiceData });
+    } catch (err) {
+      console.error(err);
       // ignore and fall back to local storage
     }
 

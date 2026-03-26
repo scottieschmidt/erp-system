@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
+import { supabase } from "#/lib/supabase";
 
 export const Route = createFileRoute("/erp/dashboard")({
   component: Dashboard,
@@ -9,6 +10,21 @@ export const Route = createFileRoute("/erp/dashboard")({
 
 type Invoice = Record<string, any>;
 type Customer = Record<string, any>;
+
+const fetchDashboard = createServerFn().handler(async () => {
+  const [invoiceRes, customerRes] = await Promise.all([
+    supabase.from("invoices").select("*").order("created_at", { ascending: false }),
+    supabase.from("customers").select("*"),
+  ]);
+
+  if (invoiceRes.error) throw new Error(invoiceRes.error.message);
+  if (customerRes.error) throw new Error(customerRes.error.message);
+
+  return {
+    invoices: invoiceRes.data ?? [],
+    customers: customerRes.data ?? [],
+  };
+});
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -28,24 +44,11 @@ function Dashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      if (supabaseBrowser) {
-        const [invoiceRes, customerRes] = await Promise.all([
-          supabaseBrowser
-            .from("invoices")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabaseBrowser.from("customers").select("*"),
-        ]);
-
-        setInvoices(invoiceRes.data ?? []);
-        setCustomers(customerRes.data ?? []);
-      } else {
-        const localInvoices = JSON.parse(localStorage.getItem("erp_invoices") ?? "[]");
-        const localCustomers = JSON.parse(localStorage.getItem("erp_customers") ?? "[]");
-        setInvoices(localInvoices);
-        setCustomers(localCustomers);
-      }
-    } catch {
+      const data = await fetchDashboard();
+      setInvoices(data.invoices);
+      setCustomers(data.customers);
+    } catch (err) {
+      console.error(err);
       const localInvoices = JSON.parse(localStorage.getItem("erp_invoices") ?? "[]");
       const localCustomers = JSON.parse(localStorage.getItem("erp_customers") ?? "[]");
       setInvoices(localInvoices);

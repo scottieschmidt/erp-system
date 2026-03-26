@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
+import { createServerFn } from "@tanstack/react-start";
+import z from "zod";
+
+import { supabase } from "#/lib/supabase";
 
 export const Route = createFileRoute("/erp/new-user")({
   component: UserInsertPage,
@@ -33,6 +36,27 @@ type UserInsertResult = {
   full_name: string | null;
 };
 
+const UserInput = z.object({
+  role_id: z.number().int(),
+  dept_id: z.number().int(),
+  password: z.string().min(6),
+  email: z.string().email().nullable(),
+  full_name: z.string().min(1),
+});
+
+const insertUser = createServerFn()
+  .inputValidator(UserInput)
+  .handler(async ({ data }) => {
+    const { data: inserted, error } = await supabase
+      .from("users")
+      .insert([data])
+      .select("user_id, created_at, role_id, dept_id, password, email, full_name")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return inserted;
+  });
+
 function UserInsertPage() {
   const [loading, setLoading] = useState(false);
   const [roleId, setRoleId] = useState("");
@@ -64,15 +88,6 @@ function UserInsertPage() {
       return;
     }
 
-    if (!supabaseBrowser) {
-      setMessage({
-        type: "error",
-        text: "Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
       const insertPayload = {
         role_id: parsedRoleId,
@@ -82,27 +97,21 @@ function UserInsertPage() {
         full_name: trimmedFullName,
       };
 
-      const { data, error } = await supabaseBrowser
-        .from("users")
-        .insert([insertPayload])
-        .select("user_id, created_at, role_id, dept_id, password, email, full_name")
-        .single();
+      const data = await insertUser({ data: insertPayload });
 
-      if (error) {
-        console.error(error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
-      } else {
-        setLastInserted(data);
-        setRoleId("");
-        setDeptId("");
-        setPassword("");
-        setEmail("");
-        setFullName("");
-        setMessage({ type: "success", text: `User created successfully (ID: ${data.user_id}).` });
-      }
+      setLastInserted(data);
+      setRoleId("");
+      setDeptId("");
+      setPassword("");
+      setEmail("");
+      setFullName("");
+      setMessage({ type: "success", text: `User created successfully (ID: ${data.user_id}).` });
     } catch (err) {
       console.error(err);
-      setMessage({ type: "error", text: "Unexpected error while inserting user." });
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Unexpected error while inserting user.",
+      });
     }
 
     setLoading(false);
