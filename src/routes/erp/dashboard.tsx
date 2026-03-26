@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-
-import { supabase } from "#/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+import { env } from "cloudflare:workers";
 
 export const Route = createFileRoute("/erp/dashboard")({
   component: Dashboard,
@@ -12,6 +12,7 @@ type Invoice = Record<string, any>;
 type Customer = Record<string, any>;
 
 const fetchDashboard = createServerFn().handler(async () => {
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
   const [invoiceRes, customerRes] = await Promise.all([
     supabase.from("invoices").select("*").order("created_at", { ascending: false }),
     supabase.from("customers").select("*"),
@@ -102,7 +103,7 @@ function Dashboard() {
           <div className="flex flex-wrap gap-2">
             <button
               className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/25"
-              onClick={() => navigate({ to: "/erp/invoice" })}
+              onClick={() => navigate({ to: "/invoice/new" })}
             >
               + New Invoice
             </button>

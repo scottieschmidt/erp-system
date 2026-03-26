@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
+import { env } from "cloudflare:workers";
 import z from "zod";
-
-import { supabase } from "#/lib/supabase";
 
 export const Route = createFileRoute("/erp/new-vendor")({
   component: VendorInsertPage,
@@ -23,6 +23,7 @@ const VendorInput = z.object({
 const insertVendor = createServerFn()
   .inputValidator(VendorInput)
   .handler(async ({ data }) => {
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
     const { data: inserted, error } = await supabase
       .from("vendor")
       .insert([data])

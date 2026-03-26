@@ -18,7 +18,6 @@ import { Route as ErpRegisterRouteImport } from './routes/erp/register'
 import { Route as ErpNewVendorRouteImport } from './routes/erp/new-vendor'
 import { Route as ErpNewUserRouteImport } from './routes/erp/new-user'
 import { Route as ErpLoginRouteImport } from './routes/erp/login'
-import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
 
 const SupabaseTestRoute = SupabaseTestRouteImport.update({
@@ -66,11 +65,6 @@ const ErpLoginRoute = ErpLoginRouteImport.update({
   path: '/erp/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ErpInvoiceRoute = ErpInvoiceRouteImport.update({
-  id: '/erp/invoice',
-  path: '/erp/invoice',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ErpDashboardRoute = ErpDashboardRouteImport.update({
   id: '/erp/dashboard',
   path: '/erp/dashboard',
@@ -81,7 +75,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
-  '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
   '/erp/new-user': typeof ErpNewUserRoute
   '/erp/new-vendor': typeof ErpNewVendorRoute
@@ -94,7 +87,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
-  '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
   '/erp/new-user': typeof ErpNewUserRoute
   '/erp/new-vendor': typeof ErpNewVendorRoute
@@ -108,7 +100,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
   '/erp/dashboard': typeof ErpDashboardRoute
-  '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
   '/erp/new-user': typeof ErpNewUserRoute
   '/erp/new-vendor': typeof ErpNewVendorRoute
@@ -123,7 +114,6 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
-    | '/erp/invoice'
     | '/erp/login'
     | '/erp/new-user'
     | '/erp/new-vendor'
@@ -136,7 +126,6 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
-    | '/erp/invoice'
     | '/erp/login'
     | '/erp/new-user'
     | '/erp/new-vendor'
@@ -149,7 +138,6 @@ export interface FileRouteTypes {
     | '/'
     | '/supabase-test'
     | '/erp/dashboard'
-    | '/erp/invoice'
     | '/erp/login'
     | '/erp/new-user'
     | '/erp/new-vendor'
@@ -163,7 +151,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SupabaseTestRoute: typeof SupabaseTestRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
-  ErpInvoiceRoute: typeof ErpInvoiceRoute
   ErpLoginRoute: typeof ErpLoginRoute
   ErpNewUserRoute: typeof ErpNewUserRoute
   ErpNewVendorRoute: typeof ErpNewVendorRoute
@@ -238,13 +225,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/erp/invoice': {
-      id: '/erp/invoice'
-      path: '/erp/invoice'
-      fullPath: '/erp/invoice'
-      preLoaderRoute: typeof ErpInvoiceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/erp/dashboard': {
       id: '/erp/dashboard'
       path: '/erp/dashboard'
@@ -259,7 +239,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SupabaseTestRoute: SupabaseTestRoute,
   ErpDashboardRoute: ErpDashboardRoute,
-  ErpInvoiceRoute: ErpInvoiceRoute,
   ErpLoginRoute: ErpLoginRoute,
   ErpNewUserRoute: ErpNewUserRoute,
   ErpNewVendorRoute: ErpNewVendorRoute,
