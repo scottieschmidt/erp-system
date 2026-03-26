@@ -20,6 +20,7 @@ import { Route as ErpNewUserRouteImport } from './routes/erp/new-user'
 import { Route as ErpLoginRouteImport } from './routes/erp/login'
 import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
+import { Route as AuthLoginRouteImport } from './routes/auth/login'
 
 const SupabaseTestRoute = SupabaseTestRouteImport.update({
   id: '/supabase-test',
@@ -76,10 +77,16 @@ const ErpDashboardRoute = ErpDashboardRouteImport.update({
   path: '/erp/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/auth/login',
+  path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/auth/login': typeof AuthLoginRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/auth/login': typeof AuthLoginRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/supabase-test': typeof SupabaseTestRoute
+  '/auth/login': typeof AuthLoginRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/login': typeof ErpLoginRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/supabase-test'
+    | '/auth/login'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/login'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/supabase-test'
+    | '/auth/login'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/login'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/supabase-test'
+    | '/auth/login'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/login'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SupabaseTestRoute: typeof SupabaseTestRoute
+  AuthLoginRoute: typeof AuthLoginRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
   ErpInvoiceRoute: typeof ErpInvoiceRoute
   ErpLoginRoute: typeof ErpLoginRoute
@@ -252,12 +265,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ErpDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SupabaseTestRoute: SupabaseTestRoute,
+  AuthLoginRoute: AuthLoginRoute,
   ErpDashboardRoute: ErpDashboardRoute,
   ErpInvoiceRoute: ErpInvoiceRoute,
   ErpLoginRoute: ErpLoginRoute,
