@@ -6,7 +6,6 @@ import { Label } from "#/components/form/Label";
 import { IntStrSchema, MoneySchema } from "#/lib/validation";
 
 export const DataSchema = v.object({
-  user_id: v.pipe(v.number(), v.integer()),
   account_id: v.pipe(v.number(), v.integer()),
   vendor_id: v.pipe(v.number(), v.integer()),
   invoice_date: v.string(),
@@ -14,7 +13,6 @@ export const DataSchema = v.object({
 });
 
 export const FormSchema = v.object({
-  user_id: v.pipe(IntStrSchema, DataSchema.entries.user_id),
   account_id: v.pipe(IntStrSchema, DataSchema.entries.account_id),
   vendor_id: v.pipe(IntStrSchema, DataSchema.entries.vendor_id),
   invoice_date: DataSchema.entries.invoice_date,
@@ -50,25 +48,6 @@ export function InvoiceForm(props: InvoiceFormProps) {
       }}
       className="flex flex-col gap-4"
     >
-      <form.Field
-        name="user_id"
-        children={(field) => (
-          <div>
-            <Label htmlFor={field.name}>User ID</Label>
-            <Input
-              id={field.name}
-              name={field.name}
-              value={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={(e) => field.handleChange(e.target.value)}
-            />
-            {!field.state.meta.isValid && (
-              <span className="text-sm text-red-600">{field.state.meta.errors[0]?.message}</span>
-            )}
-          </div>
-        )}
-      />
-
       <form.Field
         name="account_id"
         children={(field) => (
