@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
+import { MustAuthenticate } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
 import { formatDate } from "#/lib/utils";
@@ -13,13 +14,14 @@ export const Route = createFileRoute("/invoice/new")({
 });
 
 const createInvoice = createServerFn()
-  .middleware([DatabaseProvider])
+  .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(DataSchema)
   .handler(async ({ data, context }) => {
     const invoice = await context.db
       .insert(t.invoices)
       .values({
         ...data,
+        user_id: context.auth.profile.user_id,
         created_date: formatDate(new Date()),
       })
       .returning()
@@ -53,7 +55,6 @@ function NewInvoice() {
           await mutation.mutateAsync({ data });
         }}
         defaultValues={{
-          user_id: "",
           account_id: "",
           vendor_id: "",
           invoice_date: formatDate(new Date()),

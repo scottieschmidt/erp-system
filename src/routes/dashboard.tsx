@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { DashboardLayout } from "#/components/layout/DashboardLayout";
+import { redirectIfSignedOut } from "#/lib/auth";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
+  beforeLoad: async ({ context }) => {
+    await redirectIfSignedOut(context);
+  },
 });
 
 function DashboardPage() {

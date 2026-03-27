@@ -8,7 +8,7 @@ import type { RouterContext } from "#/types";
 
 import { emitStoreValue, useSubscribeStore } from "./store";
 
-const Authenticate = createMiddleware({ type: "function" })
+export const Authenticate = createMiddleware({ type: "function" })
   .middleware([DatabaseProvider, SupabaseProvider])
   .client(async ({ next }) => {
     const result = await next();
@@ -29,6 +29,22 @@ const Authenticate = createMiddleware({ type: "function" })
         auth: { identity, profile },
       },
       sendContext: {
+        auth: { identity, profile },
+      },
+    });
+  });
+
+export const MustAuthenticate = createMiddleware({ type: "function" })
+  .middleware([Authenticate])
+  .server(async ({ next, context }) => {
+    const { identity, profile } = context.auth;
+
+    if (!identity || !profile) {
+      throw new Error("User is not logged in");
+    }
+
+    return next({
+      context: {
         auth: { identity, profile },
       },
     });

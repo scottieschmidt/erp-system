@@ -2,9 +2,10 @@ import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { valibotValidator } from "@tanstack/valibot-adapter";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as v from "valibot";
 
+import { Authenticate, MustAuthenticate } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
 import { formatDate } from "#/lib/utils";
@@ -32,13 +33,18 @@ export const Route = createFileRoute("/invoice/$id")({
 });
 
 const fetchInvoiceFn = createServerFn()
-  .middleware([DatabaseProvider])
+  .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(FetchInvoiceSchema)
   .handler(async ({ data, context }) => {
     const invoice = await context.db
       .select()
       .from(t.invoices)
-      .where(eq(t.invoices.invoice_id, data.id))
+      .where(
+        and(
+          eq(t.invoices.user_id, context.auth.profile.user_id),
+          eq(t.invoices.invoice_id, data.id),
+        ),
+      )
       .limit(1)
       .then((rows) => rows[0]);
 
@@ -50,10 +56,18 @@ const fetchInvoiceFn = createServerFn()
   });
 
 const updateInvoiceFn = createServerFn()
-  .middleware([DatabaseProvider])
+  .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(UpdateInvoiceSchema)
   .handler(async ({ data, context }) => {
-    await context.db.update(t.invoices).set(data.value).where(eq(t.invoices.invoice_id, data.id));
+    await context.db
+      .update(t.invoices)
+      .set(data.value)
+      .where(
+        and(
+          eq(t.invoices.user_id, context.auth.profile.user_id),
+          eq(t.invoices.invoice_id, data.id),
+        ),
+      );
   });
 
 function ShowInvoice() {
@@ -81,7 +95,6 @@ function ShowInvoice() {
           });
         }}
         defaultValues={{
-          user_id: String(invoice.user_id),
           account_id: String(invoice.account_id),
           vendor_id: String(invoice.vendor_id),
           invoice_date: formatDate(new Date(invoice.invoice_date)),
