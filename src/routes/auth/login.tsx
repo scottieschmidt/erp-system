@@ -6,7 +6,7 @@ import * as v from "valibot";
 
 import { Input } from "#/components/form/Input";
 import { Label } from "#/components/form/Label";
-import { redirectIfSignedIn } from "#/lib/auth";
+import { redirectIfSignedIn, useAuthInfoQuery } from "#/lib/auth";
 import { SupabaseProvider, DatabaseProvider } from "#/lib/provider";
 
 export const Route = createFileRoute("/auth/login")({
@@ -25,24 +25,20 @@ const loginFn = createServerFn()
   .middleware([DatabaseProvider, SupabaseProvider])
   .inputValidator(LoginSchema)
   .handler(async ({ data, context }) => {
-    console.log("Login data:", data);
-    const result = await context.supabase.auth.signInWithPassword({
+    await context.supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
-    console.log("Login result:", result);
-
-    if (!result.data.user) {
-      throw new Error(result.error?.message ?? "Login failed");
-    }
   });
 
 function LoginPage() {
+  const auth = useAuthInfoQuery();
   const router = useRouter();
 
   const mutation = useMutation({
     mutationFn: loginFn,
     onSuccess: async () => {
+      await auth.refetch();
       await router.invalidate();
       await router.navigate({ to: "/" });
     },
