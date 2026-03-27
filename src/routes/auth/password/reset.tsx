@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { redirectIfSignedIn } from "#/lib/auth";
-import { AuthProvider, DatabaseProvider } from "#/lib/provider";
+import { SupabaseProvider, DatabaseProvider } from "#/lib/provider";
 import { decodePasswordResetToken } from "#/lib/server/auth";
 
 const RouteSearchSchema = v.object({
@@ -48,7 +48,7 @@ const ResetPasswordSchema = v.pipe(
 );
 
 const resetPasswordFn = createServerFn()
-  .middleware([DatabaseProvider, AuthProvider])
+  .middleware([DatabaseProvider, SupabaseProvider])
   .inputValidator(ResetPasswordSchema)
   .handler(async ({ context, data }) => {
     const authId = await decodePasswordResetToken(data.token);

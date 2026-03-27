@@ -1,50 +1,56 @@
-import { QueryClient, useQuery } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { createMiddleware, createServerFn } from "@tanstack/react-start";
 import { redirect } from "@tanstack/router-core";
 
+import { DatabaseProvider, SupabaseProvider } from "#/lib/provider";
+import { getOrInitProfile } from "#/lib/server/auth";
 import type { RouterContext } from "#/types";
 
-import { AuthProvider } from "./provider";
+const Authenticate = createMiddleware({ type: "function" })
+  .middleware([DatabaseProvider, SupabaseProvider])
+  .server(async ({ context, next }) => {
+    const response = await context.supabase.auth.getUser();
+    const identity = response.data.user;
+    const profile = await getOrInitProfile(context.db, identity);
 
-const getAuthInfoFn = createServerFn()
-  .middleware([AuthProvider])
-  .handler(async ({ context }) => {
-    const response = await context.auth.getUser();
-    return response.data.user;
+    return next({
+      context: {
+        auth: { identity, profile },
+      },
+    });
   });
 
-const AuthInfoQueryKey = ["#!/auth/identity"] as const;
+const getAuthStatusFn = createServerFn()
+  .middleware([Authenticate])
+  .handler(({ context }) => context.auth);
 
-export function useAuthInfoQuery() {
+const AuthStatusQueryKey = ["#!/auth"] as const;
+
+export function useAuthStatusQuery() {
   return useQuery({
-    queryKey: AuthInfoQueryKey,
-    queryFn: getAuthInfoFn,
-  });
-}
-
-export function fetchAuthInfoQuery(client: QueryClient) {
-  return client.fetchQuery({
-    queryKey: AuthInfoQueryKey,
-    queryFn: getAuthInfoFn,
-  });
-}
-
-export function invalidateAuthInfoQuery(client: QueryClient) {
-  return client.invalidateQueries({
-    queryKey: AuthInfoQueryKey,
+    queryKey: AuthStatusQueryKey,
+    queryFn: getAuthStatusFn,
   });
 }
 
 export async function redirectIfSignedOut(context: RouterContext) {
-  const info = await fetchAuthInfoQuery(context.queryClient);
-  if (!info) {
+  const auth = await context.queryClient.fetchQuery({
+    queryKey: AuthStatusQueryKey,
+    queryFn: getAuthStatusFn,
+  });
+
+  if (!auth.identity) {
     throw redirect({ to: "/auth/login" });
   }
 }
 
 export async function redirectIfSignedIn(context: RouterContext) {
-  const info = await fetchAuthInfoQuery(context.queryClient);
-  if (info) {
+  const auth = await context.queryClient.fetchQuery({
+    queryKey: AuthStatusQueryKey,
+    queryFn: getAuthStatusFn,
+  });
+
+  if (auth.identity) {
     throw redirect({ to: "/" });
   }
 }

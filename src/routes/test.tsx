@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { sql } from "drizzle-orm";
 
-import { useAuthInfoQuery } from "#/lib/auth";
+import { useAuthStatusQuery } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 
 export const Route = createFileRoute("/test")({
@@ -24,7 +24,7 @@ function TestPage() {
     queryFn: fetchVersionFn,
   });
 
-  const authInfo = useAuthInfoQuery();
+  const authInfo = useAuthStatusQuery();
 
   return (
     <main className="page-wrap px-4 pt-14 pb-8">
