@@ -5,8 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { t as schema } from "#/lib/server/database";
-
-import { getAppSession } from "./server/session";
+import { getAppSession } from "#/lib/server/session";
 
 export const DatabaseProvider = createMiddleware({ type: "function" }).server(async ({ next }) => {
   const client = postgres(env.DATABASE_URL);
@@ -17,10 +16,10 @@ export const DatabaseProvider = createMiddleware({ type: "function" }).server(as
   });
 });
 
-export const AuthProvider = createMiddleware({ type: "function" }).server(async ({ next }) => {
+export const SupabaseProvider = createMiddleware({ type: "function" }).server(async ({ next }) => {
   const session = await getAppSession();
 
-  const { auth } = createServerClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
+  const supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
     auth: {
       throwOnError: true,
     },
@@ -38,6 +37,6 @@ export const AuthProvider = createMiddleware({ type: "function" }).server(async 
   });
 
   return next({
-    context: { auth },
+    context: { supabase },
   });
 });

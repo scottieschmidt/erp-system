@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import * as v from "valibot";
 
 import { redirectIfSignedIn } from "#/lib/auth";
-import { AuthProvider, DatabaseProvider } from "#/lib/provider";
+import { SupabaseProvider, DatabaseProvider } from "#/lib/provider";
 import { createPasswordResetToken } from "#/lib/server/auth";
 import { t } from "#/lib/server/database";
 
@@ -22,7 +22,7 @@ const ForgotPasswordSchema = v.object({
 });
 
 const forgotPasswordFn = createServerFn()
-  .middleware([DatabaseProvider, AuthProvider])
+  .middleware([DatabaseProvider, SupabaseProvider])
   .inputValidator(ForgotPasswordSchema)
   .handler(async ({ context, data }) => {
     const user = await context.db
