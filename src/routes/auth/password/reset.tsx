@@ -91,7 +91,7 @@ function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <h1 className={styles.title}>Reset Password</h1>
+      <h2 className={styles.title}>Reset Password</h2>
       <p className={styles.description}>Enter your new password.</p>
 
       <form

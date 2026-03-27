@@ -28,7 +28,7 @@ const UpdateInvoiceSchema = v.object({
 
 export const Route = createFileRoute("/invoice/$id")({
   loader: ({ params }) => fetchInvoiceFn({ data: params }),
-  component: ShowInvoice,
+  component: EditInvoicePage,
   params: valibotValidator(RoutePathSchema),
 });
 
@@ -70,7 +70,7 @@ const updateInvoiceFn = createServerFn()
       );
   });
 
-function ShowInvoice() {
+function EditInvoicePage() {
   const router = useRouter();
   const invoice = Route.useLoaderData();
 

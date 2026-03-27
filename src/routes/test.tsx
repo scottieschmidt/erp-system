@@ -28,17 +28,15 @@ function TestPage() {
   const authInfo = useAuthInfoQuery();
 
   return (
-    <DashboardLayout>
-      <section className="island-shell flex flex-col gap-5 rounded-4xl px-6 py-10 sm:px-10 sm:py-14">
-        <h1 className="text-4xl font-bold text-(--sea-ink)">App State Test</h1>
-
+    <DashboardLayout title="App State Test">
+      <section className="flex flex-col gap-5">
         <div className="flex gap-3">
           <button
             onClick={() => {
               dbVersion.refetch();
               authInfo.refetch();
             }}
-            className="cursor-pointer rounded-lg border border-cyan-700/30 bg-cyan-950 px-5 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5"
+            className="cursor-pointer rounded-lg border border-cyan-700/30 bg-cyan-950 px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5"
           >
             Refresh
           </button>
