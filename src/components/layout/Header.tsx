@@ -1,5 +1,6 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Link } from "@tanstack/react-router";
+import clsx from "clsx";
 import { ChevronDown, CircleUserRound, LogOut, Settings, User } from "lucide-react";
 
 export default function Header() {
@@ -21,7 +22,7 @@ export default function Header() {
               <CircleUserRound size={22} />
               <ChevronDown
                 size={18}
-                className={`transition-transform ${open ? "rotate-180" : ""}`}
+                className={clsx("transition-transform", open && "rotate-180")}
               />
             </MenuButton>
 

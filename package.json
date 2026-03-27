@@ -28,6 +28,7 @@
     "@tanstack/router-plugin": "^1.132.0",
     "@tanstack/valibot-adapter": "^1.166.9",
     "@tsndr/cloudflare-worker-jwt": "^3.2.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.545.0",
     "postgres": "^3.4.8",
