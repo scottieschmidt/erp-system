@@ -63,7 +63,7 @@ function LoginPage() {
 
   return (
     <AuthLayout>
-      <h1 className={styles.title}>Login to your workspace</h1>
+      <h2 className={styles.title}>Login to your workspace</h2>
       <p className={styles.description}>Access the finance dashboard and invoice tools.</p>
 
       <form

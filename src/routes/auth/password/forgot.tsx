@@ -70,7 +70,7 @@ function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <h1 className={styles.title}>Reset Password</h1>
+      <h2 className={styles.title}>Reset Password</h2>
       <p className={styles.description}>Enter your email to get a password reset link.</p>
 
       <form

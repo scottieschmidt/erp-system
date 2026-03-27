@@ -19,7 +19,7 @@ const userNav: NavigationItem[] = [
   },
   {
     title: "Invoices",
-    to: "/invoice/new",
+    to: "/invoice",
     icon: FileText,
   },
   {

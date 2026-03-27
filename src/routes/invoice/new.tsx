@@ -10,7 +10,7 @@ import { formatDate } from "#/lib/utils";
 import { DataSchema, InvoiceForm } from "./-form";
 
 export const Route = createFileRoute("/invoice/new")({
-  component: NewInvoice,
+  component: NewInvoicePage,
 });
 
 const createInvoice = createServerFn()
@@ -32,7 +32,7 @@ const createInvoice = createServerFn()
     };
   });
 
-function NewInvoice() {
+function NewInvoicePage() {
   const router = useRouter();
 
   const mutation = useMutation({
