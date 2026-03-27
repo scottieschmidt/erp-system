@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import clsx from "clsx";
 import { FileText, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
 import type { ComponentType, PropsWithChildren } from "react";
 
@@ -52,20 +53,20 @@ function SidebarLink(props: SidebarLinkProps) {
   return (
     <Link
       to={props.to}
-      className={[
-        "group flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition",
+      className={clsx(
+        "group flex items-center gap-2.5 rounded-lg py-1 pr-1.5 pl-1.5 transition",
         isActive
           ? "bg-cyan-400/12 text-white shadow-[inset_0_0_0_1px_rgba(103,232,249,0.2)]"
           : "text-slate-300 hover:bg-white/6 hover:text-white",
-      ].join(" ")}
+      )}
     >
       <span
-        className={[
+        className={clsx(
           "flex h-8 w-8 flex-none items-center justify-center rounded-lg transition",
           isActive
             ? "bg-cyan-300/18 text-cyan-100"
             : "bg-slate-900/80 text-slate-400 group-hover:bg-slate-900 group-hover:text-slate-100",
-        ].join(" ")}
+        )}
       >
         <Icon className="h-4 w-4" />
       </span>
