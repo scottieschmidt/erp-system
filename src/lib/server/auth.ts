@@ -1,4 +1,4 @@
-import type { User as AuthIdentity } from "@supabase/supabase-js";
+import { type User as AuthIdentity } from "@supabase/supabase-js";
 import jwt from "@tsndr/cloudflare-worker-jwt";
 import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";

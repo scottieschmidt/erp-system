@@ -31,5 +31,5 @@ export function useSubscribeStore(key: StoreQueryKey) {
       count.release(client);
       keys.get(client)?.release(key[0]);
     };
-  }, [client]);
+  }, [client, key]);
 }

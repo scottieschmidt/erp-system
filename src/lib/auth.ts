@@ -4,7 +4,7 @@ import { redirect } from "@tanstack/router-core";
 
 import { DatabaseProvider, SupabaseProvider } from "#/lib/provider";
 import { getOrInitProfile } from "#/lib/server/auth";
-import type { RouterContext } from "#/types";
+import { type RouterContext } from "#/types";
 
 import { emitStoreValue, useSubscribeStore } from "./store";
 

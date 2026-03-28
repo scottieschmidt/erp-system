@@ -1,9 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import clsx from "clsx";
 import * as Icon from "lucide-react";
-import type { ComponentType } from "react";
+import { type ComponentType } from "react";
 
-import type { FileRouteTypes } from "#/routeTree.gen";
+import { type FileRouteTypes } from "#/routeTree.gen";
 
 type NavigationItem = {
   title: string;
