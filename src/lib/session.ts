@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { getAppSession } from "#/lib/server/session";
-import type { RouterContext } from "#/types";
+import { type RouterContext } from "#/types";
 
 const getAppSessionFn = createServerFn().handler(async () => {
   const session = await getAppSession();

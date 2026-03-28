@@ -12,7 +12,8 @@
     "test": "vitest run",
     "deploy": "npm run lint && npm run build && wrangler deploy",
     "fmt": "oxfmt",
-    "lint": "oxlint && oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

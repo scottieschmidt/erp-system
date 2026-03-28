@@ -1,4 +1,4 @@
-import type { StandardSchemaV1Issue } from "@tanstack/react-form";
+import { type StandardSchemaV1Issue } from "@tanstack/react-form";
 
 interface FieldErrorProps {
   className?: string;
