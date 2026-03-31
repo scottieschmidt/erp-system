@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import * as v from "valibot";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
+import { DatabaseProvider } from "#/lib/provider";
+import { t } from "#/lib/server/database";
 
 export const Route = createFileRoute("/erp/new-vendor")({
   component: VendorInsertPage,
+});
+
+const CreateVendorSchema = v.object({
+  vendor_name: v.pipe(v.string(), v.nonEmpty()),
+  vendor_address: v.pipe(v.string(), v.nonEmpty()),
 });
 
 type VendorInsertResult = {
@@ -12,6 +20,26 @@ type VendorInsertResult = {
   vendor_name: string;
   vendor_address: string;
 };
+
+const createVendor = createServerFn()
+  .middleware([DatabaseProvider])
+  .inputValidator(CreateVendorSchema)
+  .handler(async ({ context, data }) => {
+    const vendor = await context.db
+      .insert(t.vendor)
+      .values({
+        vendor_name: data.vendor_name,
+        vendor_address: data.vendor_address,
+      })
+      .returning()
+      .then((rows) => rows[0]);
+
+    return {
+      vendor_id: vendor.vendor_id,
+      vendor_name: vendor.vendor_name,
+      vendor_address: vendor.vendor_address ?? "",
+    };
+  });
 
 function VendorInsertPage() {
   const [loading, setLoading] = useState(false);
@@ -35,43 +63,25 @@ function VendorInsertPage() {
       return;
     }
 
-    if (!supabaseBrowser) {
-      setMessage({
-        type: "error",
-        text: "Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabaseBrowser
-        .from("vendor")
-        .insert([
-          {
-            vendor_name: trimmedName,
-            vendor_address: trimmedAddress,
-          },
-        ])
-        .select("vendor_id, vendor_name, vendor_address")
-        .single();
+      const data = await createVendor({
+        data: {
+          vendor_name: trimmedName,
+          vendor_address: trimmedAddress,
+        },
+      });
 
-      if (error) {
-        console.error(error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
-      } else {
-        console.log(data);
-        setLastInserted(data);
-        setVendorName("");
-        setVendorAddress("");
-        setMessage({
-          type: "success",
-          text: `Vendor created successfully (ID: ${data.vendor_id}).`,
-        });
-      }
+      setLastInserted(data);
+      setVendorName("");
+      setVendorAddress("");
+      setMessage({
+        type: "success",
+        text: `Vendor created successfully (ID: ${data.vendor_id}).`,
+      });
     } catch (err) {
       console.error(err);
-      setMessage({ type: "error", text: "Unexpected error while inserting vendor." });
+      const text = err instanceof Error ? err.message : "Unexpected error while inserting vendor.";
+      setMessage({ type: "error", text: `Error: ${text}` });
     }
 
     setLoading(false);
