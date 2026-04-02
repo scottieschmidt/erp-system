@@ -21,7 +21,9 @@ import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as ApiVendorsRouteImport } from './routes/api/vendors'
 import { Route as ApiSupabaseCheckRouteImport } from './routes/api/supabase-check'
+import { Route as ApiAddVendorRouteImport } from './routes/api/add-vendor'
 import { Route as AuthPasswordResetRouteImport } from './routes/auth/password/reset'
 import { Route as AuthPasswordForgotRouteImport } from './routes/auth/password/forgot'
 
@@ -85,9 +87,19 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVendorsRoute = ApiVendorsRouteImport.update({
+  id: '/api/vendors',
+  path: '/api/vendors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSupabaseCheckRoute = ApiSupabaseCheckRouteImport.update({
   id: '/api/supabase-check',
   path: '/api/supabase-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAddVendorRoute = ApiAddVendorRouteImport.update({
+  id: '/api/add-vendor',
+  path: '/api/add-vendor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthPasswordResetRoute = AuthPasswordResetRouteImport.update({
@@ -105,7 +117,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/test': typeof TestRoute
+  '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/supabase-check': typeof ApiSupabaseCheckRoute
+  '/api/vendors': typeof ApiVendorsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/erp/dashboard': typeof ErpDashboardRoute
@@ -122,7 +136,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/test': typeof TestRoute
+  '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/supabase-check': typeof ApiSupabaseCheckRoute
+  '/api/vendors': typeof ApiVendorsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/erp/dashboard': typeof ErpDashboardRoute
@@ -140,7 +156,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/test': typeof TestRoute
+  '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/supabase-check': typeof ApiSupabaseCheckRoute
+  '/api/vendors': typeof ApiVendorsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/erp/dashboard': typeof ErpDashboardRoute
@@ -159,7 +177,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/test'
+    | '/api/add-vendor'
     | '/api/supabase-check'
+    | '/api/vendors'
     | '/auth/login'
     | '/auth/register'
     | '/erp/dashboard'
@@ -176,7 +196,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/test'
+    | '/api/add-vendor'
     | '/api/supabase-check'
+    | '/api/vendors'
     | '/auth/login'
     | '/auth/register'
     | '/erp/dashboard'
@@ -193,7 +215,9 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/test'
+    | '/api/add-vendor'
     | '/api/supabase-check'
+    | '/api/vendors'
     | '/auth/login'
     | '/auth/register'
     | '/erp/dashboard'
@@ -211,7 +235,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   TestRoute: typeof TestRoute
+  ApiAddVendorRoute: typeof ApiAddVendorRoute
   ApiSupabaseCheckRoute: typeof ApiSupabaseCheckRoute
+  ApiVendorsRoute: typeof ApiVendorsRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
@@ -311,11 +337,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/vendors': {
+      id: '/api/vendors'
+      path: '/api/vendors'
+      fullPath: '/api/vendors'
+      preLoaderRoute: typeof ApiVendorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/supabase-check': {
       id: '/api/supabase-check'
       path: '/api/supabase-check'
       fullPath: '/api/supabase-check'
       preLoaderRoute: typeof ApiSupabaseCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/add-vendor': {
+      id: '/api/add-vendor'
+      path: '/api/add-vendor'
+      fullPath: '/api/add-vendor'
+      preLoaderRoute: typeof ApiAddVendorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/password/reset': {
@@ -339,7 +379,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   TestRoute: TestRoute,
+  ApiAddVendorRoute: ApiAddVendorRoute,
   ApiSupabaseCheckRoute: ApiSupabaseCheckRoute,
+  ApiVendorsRoute: ApiVendorsRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
   ErpDashboardRoute: ErpDashboardRoute,
