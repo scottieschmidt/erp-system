@@ -1,8 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createServerClient } from "@supabase/ssr";
-import { env } from "cloudflare:workers";
-
-import { getAppSession } from "#/lib/server/session";
+import { getSupabaseServerClient } from "#/lib/server/supabase";
 
 type AddVendorBody = {
   vendor_name: string;
@@ -31,20 +28,7 @@ export const Route = createFileRoute("/api/add-vendor")({
           );
         }
 
-        const session = await getAppSession();
-
-        const supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
-          auth: { throwOnError: true },
-          cookies: {
-            getAll: () => session.data.auth ?? [],
-            setAll: (cookies) => {
-              void session.update((prev) => ({
-                ...prev,
-                auth: cookies.map(({ name, value }) => ({ name, value })),
-              }));
-            },
-          },
-        });
+        const supabase = await getSupabaseServerClient();
 
         const { data, error } = await supabase
           .from("vendor")
@@ -57,6 +41,15 @@ export const Route = createFileRoute("/api/add-vendor")({
         }
 
         return Response.json({ ok: true, vendor: data }, { status: 201 });
+      },
+      GET: async () => {
+        return Response.json(
+          {
+            ok: true,
+            message: "POST vendor_name and vendor_address to create a vendor.",
+          },
+          { status: 200 },
+        );
       },
     },
   },
