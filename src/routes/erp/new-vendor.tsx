@@ -7,6 +7,7 @@ import { z } from "zod";
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
+import { eq } from "drizzle-orm";
 
 export const Route = createFileRoute("/erp/new-vendor")({
   component: VendorInsertPage,
@@ -32,6 +33,21 @@ const insertVendor = createServerFn()
   .inputValidator(VendorInsertSchema)
   .handler(async ({ data, context }) => {
     const vendor_address = `${data.house_number} ${data.street}, ${data.city}, ${data.state} ${data.postal_code}`;
+
+    const existing = await context.db
+      .select()
+      .from(t.vendor)
+      .where(eq(t.vendor.vendor_name, data.vendor_name))
+      .limit(1);
+
+    if (existing.length) {
+      const v = existing[0];
+      return {
+        vendor_id: v.vendor_id,
+        vendor_name: v.vendor_name,
+        vendor_address: v.vendor_address,
+      };
+    }
 
     const inserted = await context.db
       .insert(t.vendor)

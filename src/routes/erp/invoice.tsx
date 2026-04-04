@@ -15,14 +15,14 @@ type LineItem = {
   tax_rate: number;
 };
 
-type Customer = { id: string; name: string };
+type Vendor = { id: string; name: string };
 
 function InvoicePage() {
   const navigate = useNavigate();
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(inNDays(30));
-  const [customer, setCustomer] = useState("");
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendorId, setVendorId] = useState("");
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -40,21 +40,25 @@ function InvoicePage() {
     } else {
       addRow();
     }
-    void loadCustomers();
+    void loadVendors();
   }, [navigate]);
 
   useEffect(() => {
     localStorage.setItem("currentLineItems", JSON.stringify(lineItems));
   }, [lineItems]);
 
-  async function loadCustomers() {
+  async function loadVendors() {
     try {
       if (supabaseBrowser) {
-        const { data, error } = await supabaseBrowser
-          .from("vendor")
-          .select("vendor_id, vendor_name");
+        const { data, error } = await supabaseBrowser.from("vendor").select("vendor_id, vendor_name");
         if (!error && data) {
-          setCustomers(data.map((v) => ({ id: String(v.vendor_id), name: v.vendor_name })));
+          const uniqueByName = Object.values(
+            data.reduce<Record<string, Vendor>>((acc, v) => {
+              if (!acc[v.vendor_name]) acc[v.vendor_name] = { id: String(v.vendor_id), name: v.vendor_name };
+              return acc;
+            }, {}),
+          );
+          setVendors(uniqueByName);
           return;
         }
       }
@@ -62,8 +66,8 @@ function InvoicePage() {
       // fall back below
     }
 
-    const local = JSON.parse(localStorage.getItem("erp_customers") ?? "[]");
-    setCustomers(local.map((c: any) => ({ id: c.id ?? c.name, name: c.name ?? c.vendor_name })));
+    const local = JSON.parse(localStorage.getItem("erp_vendors") ?? "[]");
+    setVendors(local.map((c: any) => ({ id: c.id ?? c.name, name: c.name ?? c.vendor_name })));
   }
 
   function addRow() {
@@ -112,7 +116,8 @@ function InvoicePage() {
       invoice_number: `INV-${Date.now()}`,
       date: invoiceDate,
       due_date: dueDate,
-      customer,
+      vendor_id: vendorId,
+      vendor_name: vendors.find((v) => v.id === vendorId)?.name ?? "",
       subtotal: totals.subtotal,
       tax: totals.tax,
       total: totals.total,
@@ -138,11 +143,11 @@ function InvoicePage() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.08),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_30%),linear-gradient(135deg,#0f172a,#0b1224)] px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">New Invoice</h1>
-          <button
-            onClick={() => navigate({ to: "/erp/dashboard" })}
+          <div className="mx-auto max-w-5xl space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold">New Invoice</h1>
+              <button
+                onClick={() => navigate({ to: "/erp/dashboard" })}
             className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold hover:border-white/25"
           >
             Back to dashboard
@@ -150,28 +155,28 @@ function InvoicePage() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Invoice Number">
-              <input
-                readOnly
-                value="Auto-generated"
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
-              />
-            </Field>
-            <Field label="Customer">
-              <select
-                value={customer}
-                onChange={(e) => setCustomer(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
-              >
-                <option value="">Select customer</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Invoice Number">
+                <input
+                  readOnly
+                  value="Auto-generated"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
+                />
+              </Field>
+              <Field label="Vendor">
+                <select
+                  value={vendorId}
+                  onChange={(e) => setVendorId(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
+                >
+                  <option value="">Select vendor</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             <Field label="Invoice Date">
               <input
                 type="date"
