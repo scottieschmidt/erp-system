@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
-
 export const Route = createFileRoute("/erp/new-vendor")({
   component: VendorInsertPage,
 });
@@ -35,38 +33,32 @@ function VendorInsertPage() {
       return;
     }
 
-    if (!supabaseBrowser) {
-      setMessage({
-        type: "error",
-        text: "Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
-      const { data, error } = await supabaseBrowser
-        .from("vendor")
-        .insert([
-          {
-            vendor_name: trimmedName,
-            vendor_address: trimmedAddress,
-          },
-        ])
-        .select("vendor_id, vendor_name, vendor_address")
-        .single();
+      const response = await fetch("/api/add-vendor", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          vendor_name: trimmedName,
+          vendor_address: trimmedAddress,
+        }),
+      });
 
-      if (error) {
-        console.error(error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
+      const payload = (await response.json()) as
+        | { ok: true; vendor: VendorInsertResult }
+        | { ok: false; error?: string };
+
+      if (!response.ok || !payload.ok) {
+        const errorMessage = "error" in payload ? payload.error : undefined;
+        setMessage({ type: "error", text: `Error: ${errorMessage ?? "Unable to create vendor."}` });
       } else {
-        console.log(data);
-        setLastInserted(data);
+        setLastInserted(payload.vendor);
         setVendorName("");
         setVendorAddress("");
         setMessage({
           type: "success",
-          text: `Vendor created successfully (ID: ${data.vendor_id}).`,
+          text: `Vendor created successfully (ID: ${payload.vendor.vendor_id}).`,
         });
       }
     } catch (err) {

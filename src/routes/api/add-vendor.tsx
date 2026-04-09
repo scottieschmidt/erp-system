@@ -9,13 +9,15 @@ type AddVendorPayload = {
 
 function getSupabaseConfig() {
   const supabaseUrl = env?.SUPABASE_URL ?? process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  const supabaseKey =
-    env?.SUPABASE_KEY ??
-    process.env.SUPABASE_KEY ??
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
-    process.env.VITE_SUPABASE_ANON_KEY;
+  const envWithServiceRole = env as unknown as { SUPABASE_SERVICE_ROLE_KEY?: string } | undefined;
+  const serviceRoleKey = envWithServiceRole?.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = serviceRoleKey ?? env?.SUPABASE_KEY ?? process.env.SUPABASE_KEY;
 
   return { supabaseUrl, supabaseKey };
+}
+
+function isPublishableKey(key: string) {
+  return key.startsWith("sb_publishable_");
 }
 
 function escapeHtml(value: string) {
@@ -127,6 +129,15 @@ export const Route = createFileRoute("/api/add-vendor")({
           );
         }
 
+        if (isPublishableKey(supabaseKey)) {
+          const configError =
+            "SUPABASE_KEY is a publishable key. Use the Supabase service role/secret key for server inserts.";
+          if (isJsonRequest) {
+            return Response.json({ ok: false, error: configError }, { status: 500 });
+          }
+          return htmlResponse(htmlPage(undefined, configError), 500);
+        }
+
         const supabase = createServerClient(supabaseUrl, supabaseKey, {
           cookies: {
             getAll: () => [],
@@ -141,10 +152,14 @@ export const Route = createFileRoute("/api/add-vendor")({
           .single();
 
         if (error) {
+          const isRlsError = error.code === "42501";
+          const errorMessage = isRlsError
+            ? "Insert blocked by RLS. If this is a server route, set SUPABASE_KEY to a service role/secret key; otherwise add a vendor INSERT policy."
+            : error.message;
           if (isJsonRequest) {
-            return Response.json({ ok: false, error: error.message }, { status: 500 });
+            return Response.json({ ok: false, error: errorMessage }, { status: 500 });
           }
-          return htmlResponse(htmlPage(undefined, error.message), 500);
+          return htmlResponse(htmlPage(undefined, errorMessage), 500);
         }
 
         if (!isJsonRequest) {
