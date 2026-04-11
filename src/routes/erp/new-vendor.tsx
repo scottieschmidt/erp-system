@@ -40,14 +40,38 @@ function VendorInsertPage() {
     setVendorsError(null);
 
     try {
-      const response = await fetch("/api/display-vendors");
-      const payload = (await response.json()) as VendorListResponse;
+      try {
+        const response = await fetch("/api/display-vendors");
+        let payload: VendorListResponse | null = null;
+        try {
+          payload = (await response.json()) as VendorListResponse;
+        } catch {
+          payload = null;
+        }
 
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error ?? "Failed to load vendors.");
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error ?? `Request failed (${response.status})`);
+        }
+
+        setVendors(payload.vendors ?? []);
+        return;
+      } catch (apiErr) {
+        if (!supabaseBrowser) {
+          throw apiErr;
+        }
+
+        const { data, error } = await supabaseBrowser
+          .from("vendor")
+          .select("vendor_id, vendor_name, vendor_address")
+          .order("vendor_id", { ascending: false });
+
+        if (error) {
+          const apiErrorMessage = apiErr instanceof Error ? apiErr.message : "Unknown API error";
+          throw new Error(`API error: ${apiErrorMessage}. Direct query error: ${error.message}`);
+        }
+
+        setVendors(data ?? []);
       }
-
-      setVendors(payload.vendors ?? []);
     } catch (err) {
       setVendorsError(err instanceof Error ? err.message : "Unknown error while loading vendors.");
     } finally {
