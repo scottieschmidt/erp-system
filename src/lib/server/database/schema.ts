@@ -9,6 +9,8 @@ import {
   timestamp,
   pgEnum,
   uuid,
+  pgSchema,
+  inet,
 } from "drizzle-orm/pg-core";
 
 export const enum_pay_type = pgEnum("pay_type", ["cash", "check", "credit_card"]);
@@ -61,4 +63,18 @@ export const users = pgTable("users", {
   dept_id: bigint({ mode: "number" }),
   email: text().notNull(),
   full_name: text().notNull(),
+});
+
+// Supabase Auth
+
+const AuthSchema = pgSchema("auth");
+
+export const auth_sessions = AuthSchema.table("sessions", {
+  id: uuid().primaryKey(),
+  user_id: uuid().notNull(),
+  created_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  updated_at: timestamp({ withTimezone: true, mode: "string" }).notNull(),
+  refreshed_at: timestamp({ withTimezone: true, mode: "string" }),
+  user_agent: text(),
+  ip: inet(),
 });

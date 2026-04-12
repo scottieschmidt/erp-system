@@ -82,7 +82,7 @@ function UserMenu() {
 
             <MenuItem>
               <Link
-                to="/dashboard"
+                to="/settings"
                 className="flex items-center gap-2 rounded px-3 py-2 text-sm transition-colors hover:bg-gray-800 data-focus:bg-white/10"
               >
                 <Icon.Settings size={16} />
