@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InvoiceIndexRouteImport } from './routes/invoice/index'
@@ -31,6 +32,11 @@ import { Route as AuthPasswordForgotRouteImport } from './routes/auth/password/f
 const TestRoute = TestRouteImport.update({
   id: '/test',
   path: '/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -122,6 +128,7 @@ const AuthPasswordForgotRoute = AuthPasswordForgotRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/test': typeof TestRoute
   '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/display-vendors': typeof ApiDisplayVendorsRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/test': typeof TestRoute
   '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/display-vendors': typeof ApiDisplayVendorsRoute
@@ -163,6 +171,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/settings': typeof SettingsRoute
   '/test': typeof TestRoute
   '/api/add-vendor': typeof ApiAddVendorRoute
   '/api/display-vendors': typeof ApiDisplayVendorsRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/settings'
     | '/test'
     | '/api/add-vendor'
     | '/api/display-vendors'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/settings'
     | '/test'
     | '/api/add-vendor'
     | '/api/display-vendors'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/settings'
     | '/test'
     | '/api/add-vendor'
     | '/api/display-vendors'
@@ -246,6 +258,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  SettingsRoute: typeof SettingsRoute
   TestRoute: typeof TestRoute
   ApiAddVendorRoute: typeof ApiAddVendorRoute
   ApiDisplayVendorsRoute: typeof ApiDisplayVendorsRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/test'
       fullPath: '/test'
       preLoaderRoute: typeof TestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -398,6 +418,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  SettingsRoute: SettingsRoute,
   TestRoute: TestRoute,
   ApiAddVendorRoute: ApiAddVendorRoute,
   ApiDisplayVendorsRoute: ApiDisplayVendorsRoute,
