@@ -47,13 +47,41 @@ function createEmptyLineItem(): LineItem {
 }
 
 function toCents(value: string | number | null | undefined): number | null {
-  const numericValue = typeof value === "number" ? value : Number(value);
+  const sanitizedValue =
+    typeof value === "string" ? value.replaceAll(",", "").replace("$", "").trim() : value;
+
+  if (sanitizedValue === "" || sanitizedValue === "." || sanitizedValue === null) {
+    return null;
+  }
+
+  const numericValue = typeof sanitizedValue === "number" ? sanitizedValue : Number(sanitizedValue);
 
   if (!Number.isFinite(numericValue)) {
     return null;
   }
 
   return Math.round(numericValue * 100);
+}
+
+function sanitizeMoneyInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const [whole = "", ...decimalParts] = cleaned.split(".");
+  const decimal = decimalParts.join("").slice(0, 2);
+
+  if (!decimalParts.length) {
+    return whole;
+  }
+
+  return `${whole}.${decimal}`;
+}
+
+function formatMoneyInput(value: string): string {
+  const cents = toCents(value);
+  if (cents === null) {
+    return value;
+  }
+
+  return (cents / 100).toFixed(2);
 }
 
 export function InvoiceForm(props: InvoiceFormProps) {
@@ -222,16 +250,24 @@ export function InvoiceForm(props: InvoiceFormProps) {
             return (
               <Field className="flex flex-col gap-1">
                 <Label>Total Amount</Label>
-                <Input
-                  name={field.name}
-                  type="number"
-                  step="0.01"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  required
-                  className="rounded-md border border-gray-300 px-3 py-2"
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-500">
+                    $
+                  </span>
+                  <Input
+                    name={field.name}
+                    type="text"
+                    inputMode="decimal"
+                    value={field.state.value}
+                    onBlur={() => {
+                      field.handleBlur();
+                      field.handleChange(formatMoneyInput(field.state.value));
+                    }}
+                    onChange={(e) => field.handleChange(sanitizeMoneyInput(e.target.value))}
+                    required
+                    className="rounded-md border border-gray-300 py-2 pr-3 pl-7"
+                  />
+                </div>
                 <p className="text-xs text-gray-500">
                   Enter the invoice total. It must match the calculated total from the
                   line items below.
