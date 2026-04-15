@@ -84,8 +84,31 @@ function formatMoneyInput(value: string): string {
   return (cents / 100).toFixed(2);
 }
 
+function getLineItemErrors(item: LineItem): string[] {
+  const errors: string[] = [];
+
+  if (!item.description.trim()) {
+    errors.push("Description is required.");
+  }
+
+  if (item.quantity <= 0) {
+    errors.push("Quantity must be greater than 0.");
+  }
+
+  if (item.price < 0) {
+    errors.push("Price cannot be negative.");
+  }
+
+  if (item.tax_rate < 0 || item.tax_rate > 100) {
+    errors.push("Tax rate must be between 0 and 100.");
+  }
+
+  return errors;
+}
+
 export function InvoiceForm(props: InvoiceFormProps) {
   const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()]);
+  const [submitDebugMessage, setSubmitDebugMessage] = useState<string | null>(null);
 
   const totals = useMemo(() => {
     const subtotal = lineItems.reduce(
@@ -104,6 +127,22 @@ export function InvoiceForm(props: InvoiceFormProps) {
   }, [lineItems]);
 
   const calculatedTotalCents = useMemo(() => toCents(totals.total) ?? 0, [totals.total]);
+  const lineItemErrorsById = useMemo(() => {
+    const errors = new Map<string, string[]>();
+    lineItems.forEach((item) => {
+      errors.set(item.id, getLineItemErrors(item));
+    });
+    return errors;
+  }, [lineItems]);
+  const lineItemErrorSummaries = useMemo(
+    () =>
+      lineItems.flatMap((item, index) =>
+        (lineItemErrorsById.get(item.id) ?? []).map(
+          (message) => `Line item ${index + 1}: ${message}`,
+        ),
+      ),
+    [lineItems, lineItemErrorsById],
+  );
 
   const form = useForm({
     defaultValues: {
@@ -118,10 +157,31 @@ export function InvoiceForm(props: InvoiceFormProps) {
       onChange: FormSchema,
     },
     onSubmit: async ({ value }) => {
+      setSubmitDebugMessage(null);
+
+      if (lineItemErrorSummaries.length) {
+        setSubmitDebugMessage(
+          `Cannot submit invoice yet. ${lineItemErrorSummaries[0]} Fix the line-item issues and try again.`,
+        );
+        return;
+      }
+
       const data = v.parse(FormSchema, value);
 
       const amountCents = toCents(data.amount);
-      if (amountCents === null || amountCents !== calculatedTotalCents) {
+      if (amountCents === null) {
+        setSubmitDebugMessage(
+          "Total Amount is invalid. Enter a dollar amount like 125.00.",
+        );
+        return;
+      }
+
+      if (amountCents !== calculatedTotalCents) {
+        setSubmitDebugMessage(
+          `Total Amount $${(amountCents / 100).toFixed(2)} must match calculated total $${(
+            calculatedTotalCents / 100
+          ).toFixed(2)}.`,
+        );
         return;
       }
 
@@ -130,10 +190,12 @@ export function InvoiceForm(props: InvoiceFormProps) {
   });
 
   function addRow() {
+    setSubmitDebugMessage(null);
     setLineItems((prev) => [...prev, createEmptyLineItem()]);
   }
 
   function deleteRow(id: string) {
+    setSubmitDebugMessage(null);
     setLineItems((prev) => {
       const filtered = prev.filter((item) => item.id !== id);
       return filtered.length ? filtered : [createEmptyLineItem()];
@@ -141,6 +203,7 @@ export function InvoiceForm(props: InvoiceFormProps) {
   }
 
   function updateRow(id: string, field: keyof LineItem, value: string) {
+    setSubmitDebugMessage(null);
     setLineItems((prev) =>
       prev.map((item) =>
         item.id === id
@@ -176,7 +239,10 @@ export function InvoiceForm(props: InvoiceFormProps) {
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
+                  onChange={(e) => {
+                    setSubmitDebugMessage(null);
+                    field.handleChange(e.target.value);
+                  }}
                   required
                   className="rounded-md border border-gray-300 px-3 py-2"
                 >
@@ -194,7 +260,10 @@ export function InvoiceForm(props: InvoiceFormProps) {
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
+                  onChange={(e) => {
+                    setSubmitDebugMessage(null);
+                    field.handleChange(e.target.value);
+                  }}
                   className="rounded-md border border-gray-300 px-3 py-2"
                 />
               )}
@@ -212,10 +281,16 @@ export function InvoiceForm(props: InvoiceFormProps) {
                 name={field.name}
                 value={field.state.value}
                 onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
+                onChange={(e) => {
+                  setSubmitDebugMessage(null);
+                  field.handleChange(e.target.value);
+                }}
                 required
                 className="rounded-md border border-gray-300 px-3 py-2"
               />
+              <p className="text-xs text-gray-500">
+                Use an existing numeric vendor ID from the vendor table.
+              </p>
               <FieldError meta={field.state.meta} />
             </Field>
           )}
@@ -231,7 +306,10 @@ export function InvoiceForm(props: InvoiceFormProps) {
                 type="date"
                 value={field.state.value}
                 onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
+                onChange={(e) => {
+                  setSubmitDebugMessage(null);
+                  field.handleChange(e.target.value);
+                }}
                 required
                 className="rounded-md border border-gray-300 px-3 py-2"
               />
@@ -262,8 +340,12 @@ export function InvoiceForm(props: InvoiceFormProps) {
                     onBlur={() => {
                       field.handleBlur();
                       field.handleChange(formatMoneyInput(field.state.value));
+                      setSubmitDebugMessage(null);
                     }}
-                    onChange={(e) => field.handleChange(sanitizeMoneyInput(e.target.value))}
+                    onChange={(e) => {
+                      setSubmitDebugMessage(null);
+                      field.handleChange(sanitizeMoneyInput(e.target.value));
+                    }}
                     required
                     className="rounded-md border border-gray-300 py-2 pr-3 pl-7"
                   />
@@ -311,7 +393,7 @@ export function InvoiceForm(props: InvoiceFormProps) {
             </thead>
             <tbody>
               {lineItems.map((item) => (
-                <tr key={item.id} className="border-b">
+                <tr key={item.id} className="border-b align-top">
                   <td className="px-3 py-2">
                     <input
                       value={item.description}
@@ -321,6 +403,13 @@ export function InvoiceForm(props: InvoiceFormProps) {
                       placeholder="Item description"
                       className="w-full rounded-md border border-gray-300 px-2 py-2"
                     />
+                    {(lineItemErrorsById.get(item.id) ?? []).length > 0 && (
+                      <ul className="mt-1 space-y-1 text-xs text-red-600">
+                        {(lineItemErrorsById.get(item.id) ?? []).map((message, index) => (
+                          <li key={`${item.id}-error-${index}`}>{message}</li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
 
                   <td className="px-3 py-2">
@@ -400,7 +489,29 @@ export function InvoiceForm(props: InvoiceFormProps) {
             <span>${totals.total.toFixed(2)}</span>
           </div>
         </div>
+
+        {lineItemErrorSummaries.length > 0 && (
+          <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-semibold">Line-item validation details</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              {lineItemErrorSummaries.slice(0, 5).map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+            {lineItemErrorSummaries.length > 5 && (
+              <p className="mt-1">
+                ...and {lineItemErrorSummaries.length - 5} more issue(s).
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {submitDebugMessage && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {submitDebugMessage}
+        </div>
+      )}
 
       {props.errorText && <div className="text-sm text-red-600">{props.errorText}</div>}
 
