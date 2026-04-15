@@ -7,6 +7,10 @@ import { useState } from "react";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
+import {
+  getDatabaseErrorReason,
+  insertInvoiceWithInvoiceIdFallback,
+} from "#/lib/server/database/invoices";
 import { formatDate } from "#/lib/utils";
 
 import { DataSchema, InvoiceForm } from "./-form";
@@ -65,17 +69,13 @@ const createInvoice = createServerFn()
 
     let invoice;
     try {
-      invoice = await context.db
-        .insert(t.invoices)
-        .values({
-          ...data,
-          user_id: profileUserId,
-          created_date: formatDate(new Date()),
-        })
-        .returning()
-        .then((rows) => rows[0]);
+      invoice = await insertInvoiceWithInvoiceIdFallback(context.db, {
+        ...data,
+        user_id: profileUserId,
+        created_date: formatDate(new Date()),
+      });
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
+      const reason = getDatabaseErrorReason(error);
       throw new Error(
         `Invoice insert failed (user_id=${profileUserId}, account_id=${data.account_id}, vendor_id=${data.vendor_id}, amount=${data.amount}, invoice_date=${data.invoice_date}). ${reason}`,
       );

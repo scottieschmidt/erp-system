@@ -6,7 +6,10 @@ import { z } from "zod";
 import { supabaseBrowser } from "#/lib/supabaseBrowser";
 import { DatabaseProvider } from "#/lib/provider";
 import { MustAuthenticate } from "#/lib/auth";
-import { t } from "#/lib/server/database";
+import {
+  getDatabaseErrorReason,
+  insertInvoiceWithInvoiceIdFallback,
+} from "#/lib/server/database/invoices";
 
 export const Route = createFileRoute("/erp/invoice")({
   component: InvoicePage,
@@ -33,21 +36,25 @@ const createInvoice = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(InvoiceCreateSchema)
   .handler(async ({ data, context }) => {
-    const inserted = await context.db
-      .insert(t.invoices)
-      .values({
+    let inserted;
+    try {
+      inserted = await insertInvoiceWithInvoiceIdFallback(context.db, {
         user_id: context.auth.profile.user_id as any,
         account_id: data.account_id ?? 1,
         vendor_id: data.vendor_id,
         invoice_date: data.invoice_date,
-        amount: data.amount,
+        amount: data.amount as any,
         created_date: today(),
-      } as any)
-      .returning({ invoice_id: t.invoices.invoice_id })
-      .then((rows) => rows[0]);
+      });
+    } catch (error) {
+      const reason = getDatabaseErrorReason(error);
+      throw new Error(
+        `Failed to create invoice (user_id=${context.auth.profile.user_id}, account_id=${data.account_id ?? 1}, vendor_id=${data.vendor_id}, amount=${data.amount}, invoice_date=${data.invoice_date}). ${reason}`,
+      );
+    }
 
     if (!inserted) throw new Error("Failed to create invoice");
-    return inserted;
+    return { invoice_id: inserted.invoice_id };
   });
 
 function InvoicePage() {
