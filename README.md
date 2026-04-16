@@ -30,7 +30,7 @@ Examples: mousePressed()
 
 ## Architecture Diagram
 Here is our diagram MVC image below:
-![alt text](UML-ERP.png)
+![pic](public/MVC_diagram.png)
 
 
 ## Data Flow Between Layers
@@ -57,7 +57,7 @@ This is the “bain” of the application that contains business logic, rules, a
 - Component 6: Supabase Database 
 Here are the tables, columns and connections in Supabase:
 
-![alt text](SupabaseERD.png)
+![pic](public/SupabaseERD.png)
 
 ---
 
