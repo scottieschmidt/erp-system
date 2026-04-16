@@ -2,6 +2,7 @@
 Advanced Software Engineering  Team:
 Scott Schmidt, DaShawn Pfeifer, SeEun Chung, Suphanat Rojsiristith, Walter Zou
 
+
 MVC is Model-View-Controller which is a way to organize your code into 3 roles. 
 1. Model (Data) handles the database and data structure such as the tables users, invoices, and vendor.
 2. View (UI) is what the user sees such as forms and the dashboards.
@@ -9,6 +10,7 @@ Example: Box Layout or Gidlayout
 3. Controller connects the model and view. 
 Examples: mousePressed()
 
+![ERP Diagram](UML-ERP.png)
 
 ## Architecture Diagram
 Here is our diagram MVC image below:
@@ -270,3 +272,5 @@ Files prefixed with `demo` can be safely deleted. They are there to provide a st
 You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
 
 For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+
+![ERP Database Diagram](./images/SupabaseERD.png)
