@@ -33,7 +33,14 @@ export const Route = createFileRoute("/invoice/$id")({
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
   },
-  loader: ({ params }) => fetchInvoiceFn({ data: params }),
+  loader: async ({ params }) => {
+    const [invoice, formOptions] = await Promise.all([
+      fetchInvoiceFn({ data: params }),
+      listInvoiceFormOptions(),
+    ]);
+
+    return { invoice, formOptions };
+  },
 });
 
 const fetchInvoiceFn = createServerFn()
@@ -59,6 +66,27 @@ const fetchInvoiceFn = createServerFn()
     return invoice;
   });
 
+const listInvoiceFormOptions = createServerFn()
+  .middleware([DatabaseProvider, MustAuthenticate])
+  .handler(async ({ context }) => {
+    const [accounts, vendors] = await Promise.all([
+      context.db
+        .select({
+          account_id: t.gl_accounts.account_id,
+          account_name: t.gl_accounts.account_name,
+        })
+        .from(t.gl_accounts),
+      context.db
+        .select({
+          vendor_id: t.vendor.vendor_id,
+          vendor_name: t.vendor.vendor_name,
+        })
+        .from(t.vendor),
+    ]);
+
+    return { accounts, vendors };
+  });
+
 const updateInvoiceFn = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(UpdateInvoiceSchema)
@@ -76,7 +104,7 @@ const updateInvoiceFn = createServerFn()
 
 function EditInvoicePage() {
   const router = useRouter();
-  const invoice = Route.useLoaderData();
+  const { invoice, formOptions } = Route.useLoaderData();
   const [successMessage, setSuccessMessage] = useState("");
 
   const mutation = useMutation({
@@ -112,10 +140,18 @@ function EditInvoicePage() {
         }}
         defaultValues={{
           account_id: String(invoice.account_id),
-          vendor_id: String(invoice.vendor_id),
+          vendor_id: invoice.vendor_id == null ? "" : String(invoice.vendor_id),
           invoice_date: formatDate(new Date(invoice.invoice_date)),
           amount: String(invoice.amount),
         }}
+        accounts={formOptions.accounts.map((acct) => ({
+          id: String(acct.account_id),
+          name: acct.account_name,
+        }))}
+        vendors={formOptions.vendors.map((vendor) => ({
+          id: String(vendor.vendor_id),
+          name: vendor.vendor_name,
+        }))}
       />
     </div>
   );

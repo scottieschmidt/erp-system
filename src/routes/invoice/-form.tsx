@@ -26,6 +26,7 @@ export interface InvoiceFormProps {
   onSubmit: (data: v.InferInput<typeof DataSchema>) => Promise<void>;
   defaultValues: v.InferInput<typeof FormSchema>;
   accounts?: { id: string; name: string }[];
+  vendors?: { id: string; name: string }[];
 }
 
 type LineItem = {
@@ -332,21 +333,46 @@ export function InvoiceForm(props: InvoiceFormProps) {
           name="vendor_id"
           children={(field) => (
             <Field className="flex flex-col gap-1">
-              <Label>Vendor ID</Label>
-              <Input
-                name={field.name}
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(e) => {
-                  setSubmitDebugMessage(null);
-                  field.handleChange(e.target.value);
-                }}
-                required
-                className="rounded-md border border-gray-300 px-3 py-2"
-              />
-              <p className="text-xs text-gray-500">
-                Use an existing numeric vendor ID from the vendor table.
-              </p>
+              <Label>Vendor</Label>
+              {props.vendors && props.vendors.length ? (
+                <select
+                  name={field.name}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => {
+                    setSubmitDebugMessage(null);
+                    field.handleChange(e.target.value);
+                  }}
+                  required
+                  className="rounded-md border border-gray-300 px-3 py-2"
+                >
+                  <option value="" disabled>
+                    Select a vendor
+                  </option>
+                  {props.vendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.id} - {vendor.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <Input
+                    name={field.name}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(e) => {
+                      setSubmitDebugMessage(null);
+                      field.handleChange(e.target.value);
+                    }}
+                    required
+                    className="rounded-md border border-gray-300 px-3 py-2"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Use an existing numeric vendor ID from the vendor table.
+                  </p>
+                </>
+              )}
               <FieldError meta={field.state.meta} />
             </Field>
           )}

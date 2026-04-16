@@ -20,7 +20,7 @@ export const Route = createFileRoute("/invoice/new")({
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
   },
-  loader: () => listAccounts(),
+  loader: () => listInvoiceFormOptions(),
 });
 
 const createInvoice = createServerFn()
@@ -59,22 +59,30 @@ const createInvoice = createServerFn()
     };
   });
 
-const listAccounts = createServerFn()
+const listInvoiceFormOptions = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .handler(async ({ context }) => {
-    const accounts = await context.db
-      .select({
-        account_id: t.gl_accounts.account_id,
-        account_name: t.gl_accounts.account_name,
-      })
-      .from(t.gl_accounts);
+    const [accounts, vendors] = await Promise.all([
+      context.db
+        .select({
+          account_id: t.gl_accounts.account_id,
+          account_name: t.gl_accounts.account_name,
+        })
+        .from(t.gl_accounts),
+      context.db
+        .select({
+          vendor_id: t.vendor.vendor_id,
+          vendor_name: t.vendor.vendor_name,
+        })
+        .from(t.vendor),
+    ]);
 
-    return accounts;
+    return { accounts, vendors };
   });
 
 function NewInvoicePage() {
   const router = useRouter();
-  const accounts = Route.useLoaderData();
+  const { accounts, vendors } = Route.useLoaderData();
   const [successMessage, setSuccessMessage] = useState("");
 
   const mutation = useMutation({
@@ -122,7 +130,11 @@ function NewInvoicePage() {
         accounts={accounts?.map((acct) => ({
           id: String(acct.account_id),
           name: acct.account_name,
-        }))} // provide dropdown options
+        }))}
+        vendors={vendors?.map((vendor) => ({
+          id: String(vendor.vendor_id),
+          name: vendor.vendor_name,
+        }))}
       />
     </div>
   );
