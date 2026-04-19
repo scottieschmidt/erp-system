@@ -177,13 +177,19 @@ function ListInvoicePage() {
                 <td>{invoice.invoice_date}</td>
                 <td>${invoice.amount}</td>
                 <td className="px-2">
-                  <Link
-                    to="/invoice/$id"
-                    params={{ id: invoice.invoice_id }}
-                    className="rounded bg-gray-700 px-2 py-1 text-sm text-gray-200 transition-colors hover:bg-gray-600"
-                  >
-                    Edit
-                  </Link>
+                  {invoice.is_paid ? (
+                    <span className="rounded bg-emerald-700 px-2 py-1 text-sm font-semibold text-emerald-50">
+                      Paid
+                    </span>
+                  ) : (
+                    <Link
+                      to="/invoice/$id"
+                      params={{ id: invoice.invoice_id }}
+                      className="rounded bg-gray-700 px-2 py-1 text-sm text-gray-200 transition-colors hover:bg-gray-600"
+                    >
+                      Edit
+                    </Link>
+                  )}
                 </td>
               </tr>
             ))}

@@ -12,33 +12,20 @@ import { DashboardLayout } from "../../components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "../../lib/auth";
 import { DatabaseProvider } from "../../lib/provider";
 import { t } from "../../lib/server/database";
+import { getDatabaseErrorReason } from "../../lib/server/database/invoices";
 
 type Account = {
   account_id: number;
-  account_description: string;
+  account_name: string;
 };
 
-const ACCOUNTS: Account[] = [
-  { account_id: 1000, account_description: "Cash" },
-  { account_id: 1100, account_description: "Accounts Receivable" },
-  { account_id: 2000, account_description: "Accounts Payable" },
-  { account_id: 4000, account_description: "Revenue" },
-  { account_id: 5000, account_description: "Office Supplies" },
-  { account_id: 5100, account_description: "Professional Services" },
-  { account_id: 5200, account_description: "Utilities" },
-  { account_id: 5300, account_description: "Travel & Entertainment" },
-  { account_id: 6000, account_description: "Depreciation" },
-];
-
 const PAY_TYPES = [
-  "Cash",
-  "Bank Transfer",
-  "Check",
-  "Credit Card",
-  "Debit Card",
+  { value: "cash", label: "Cash" },
+  { value: "check", label: "Check" },
+  { value: "credit_card", label: "Credit Card" },
 ] as const;
 
-const getUnpaidInvoices = createServerFn()
+const getVoucherFormOptions = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .handler(async ({ context }) => {
     const invoices = await context.db
@@ -46,6 +33,7 @@ const getUnpaidInvoices = createServerFn()
         invoice_id: t.invoices.invoice_id,
         invoice_date: t.invoices.invoice_date,
         amount: t.invoices.amount,
+        account_id: t.invoices.account_id,
         vendor_name: t.vendor.vendor_name,
       })
       .from(t.invoices)
@@ -58,7 +46,19 @@ const getUnpaidInvoices = createServerFn()
       )
       .orderBy(desc(t.invoices.invoice_id));
 
-    return invoices;
+    const accountIds = Array.from(
+      new Set(invoices.map((invoice) => Number(invoice.account_id)).filter(Boolean)),
+    ).sort((a, b) => a - b);
+
+    const accounts: Account[] = accountIds.map((accountId) => ({
+      account_id: accountId,
+      account_name: `Account ${accountId}`,
+    }));
+
+    return {
+      invoices,
+      accounts,
+    };
   });
 
 const saveVoucherPayment = createServerFn({ method: "POST" })
@@ -71,8 +71,10 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
     const voucherNumber: string = data.voucherNumber ?? "";
     const accountId: number | null = data.accountId ?? null;
     const paymentDate: string = data.paymentDate ?? "";
-    const payType: string = data.payType ?? "";
+    const payTypeRaw: string = data.payType ?? "";
     const description: string = data.description ?? "";
+    const payType = payTypeRaw.toLowerCase().replaceAll(" ", "_");
+    const allowedPayTypes = new Set(PAY_TYPES.map((type) => type.value));
 
     if (!invoiceIds.length) {
       throw new Error("No invoices selected.");
@@ -82,11 +84,16 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
       throw new Error("Missing required payment data.");
     }
 
+    if (!allowedPayTypes.has(payType as (typeof PAY_TYPES)[number]["value"])) {
+      throw new Error("Invalid payment type.");
+    }
+
     return await context.db.transaction(async (tx: any) => {
       const invoiceRows = await tx
         .select({
           invoice_id: t.invoices.invoice_id,
           amount: t.invoices.amount,
+          account_id: t.invoices.account_id,
         })
         .from(t.invoices)
         .where(
@@ -101,26 +108,41 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
         throw new Error("No valid unpaid invoices found.");
       }
 
+      const accountIsInSelectedInvoices = invoiceRows.some(
+        (inv: any) => Number(inv.account_id) === Number(accountId),
+      );
+      if (!accountIsInSelectedInvoices) {
+        throw new Error("Selected account does not match selected unpaid invoices.");
+      }
+
       const totalAmount = invoiceRows.reduce(
         (sum: number, inv: any) => sum + Number(inv.amount),
         0,
       );
 
-      const insertedPayment = await tx
-        .insert(t.payment)
-        .values({
-          user_id: context.auth.profile.user_id,
-          account_id: accountId,
-          voucher_number: voucherNumber || `VCH-${Date.now()}`,
-          payment_date: paymentDate,
-          pay_type: payType,
-          total_amount: totalAmount,
-          description: description || null,
-        })
-        .returning({
-          payment_id: t.payment.payment_id,
-          voucher_number: t.payment.voucher_number,
-        });
+      let insertedPayment;
+      try {
+        insertedPayment = await tx
+          .insert(t.payment)
+          .values({
+            user_id: context.auth.profile.user_id,
+            account_id: accountId,
+            voucher_number: voucherNumber || `VCH-${Date.now()}`,
+            payment_date: paymentDate,
+            pay_type: payType,
+            total_amount: totalAmount,
+            description: description || null,
+          })
+          .returning({
+            payment_id: t.payment.payment_id,
+            voucher_number: t.payment.voucher_number,
+          });
+      } catch (error) {
+        const reason = getDatabaseErrorReason(error);
+        throw new Error(
+          `Payment insert failed (account_id=${accountId}, pay_type=${payType}, payment_date=${paymentDate}). ${reason}`,
+        );
+      }
 
       const paymentId = insertedPayment[0]?.payment_id;
       const savedVoucherNumber = insertedPayment[0]?.voucher_number;
@@ -169,7 +191,7 @@ export const Route = createFileRoute("/erp/new-voucher")({
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
   },
-  loader: () => getUnpaidInvoices(),
+  loader: () => getVoucherFormOptions(),
 });
 
 type VoucherFormData = {
@@ -182,7 +204,7 @@ type VoucherFormData = {
 };
 
 function NewVoucherPage() {
-  const invoices = Route.useLoaderData();
+  const { invoices, accounts } = Route.useLoaderData();
   const router = useRouter();
 
   const [formData, setFormData] = useState<VoucherFormData>({
@@ -197,12 +219,20 @@ function NewVoucherPage() {
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const selectedInvoiceIds = useMemo(
+    () =>
+      Array.from(
+        new Set(formData.selectedInvoices.filter((id) => id > 0))
+      ),
+    [formData.selectedInvoices]
+  );
+
   const selectedInvoices = useMemo(
     () =>
       invoices.filter((inv) =>
-        formData.selectedInvoices.includes(inv.invoice_id)
+        selectedInvoiceIds.includes(inv.invoice_id)
       ),
-    [formData.selectedInvoices, invoices]
+    [selectedInvoiceIds, invoices]
   );
 
   const totalAmount = useMemo(
@@ -217,19 +247,31 @@ function NewVoucherPage() {
   const handleInvoiceSelect = (index: number, invoiceId: number) => {
     setFormData((prev) => {
       const newSelectedInvoices = [...prev.selectedInvoices];
-      newSelectedInvoices[index] = invoiceId;
+      const nextId = invoiceId > 0 ? invoiceId : 0;
 
-      // Remove duplicates
-      const uniqueInvoices = [...new Set(newSelectedInvoices.filter(id => id > 0))];
+      // Keep dropdown rows stable while preventing duplicate invoice selection.
+      if (nextId > 0) {
+        const duplicateIndex = newSelectedInvoices.findIndex(
+          (id, i) => i !== index && id === nextId
+        );
+
+        if (duplicateIndex >= 0) {
+          newSelectedInvoices[duplicateIndex] = 0;
+        }
+      }
+
+      newSelectedInvoices[index] = nextId;
+
+      const selectedCount = newSelectedInvoices.filter((id) => id > 0).length;
 
       return {
         ...prev,
-        selectedInvoices: uniqueInvoices,
-        voucherNumber: uniqueInvoices.length > 0 && prev.voucherNumber === ""
+        selectedInvoices: newSelectedInvoices,
+        voucherNumber: selectedCount > 0 && prev.voucherNumber === ""
           ? `VCH-${Date.now()}`
           : prev.voucherNumber,
-        description: uniqueInvoices.length > 0 && prev.description === ""
-          ? `Payment for ${uniqueInvoices.length} invoice${uniqueInvoices.length > 1 ? 's' : ''}`
+        description: selectedCount > 0 && prev.description === ""
+          ? `Payment for ${selectedCount} invoice${selectedCount > 1 ? "s" : ""}`
           : prev.description,
       };
     });
@@ -330,9 +372,9 @@ function NewVoucherPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Invoice Selection */}
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 text-gray-900">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Select Invoices to Pay</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Select Invoices to Pay</h3>
               <button
                 type="button"
                 onClick={addInvoiceDropdown}
@@ -352,7 +394,7 @@ function NewVoucherPage() {
                     <select
                       value={selectedId || ""}
                       onChange={(e) => handleInvoiceSelect(index, Number(e.target.value))}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                      className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none"
                     >
                       <option value="">Select an invoice</option>
                       {invoices
@@ -400,39 +442,39 @@ function NewVoucherPage() {
           {/* Voucher Details */}
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Voucher Number *
               </label>
               <input
                 name="voucherNumber"
                 value={formData.voucherNumber}
                 onChange={handleChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Auto-generated"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Account *
               </label>
               <select
                 name="accountId"
                 value={formData.accountId || ""}
                 onChange={(e) => setFormData(prev => ({ ...prev, accountId: e.target.value ? Number(e.target.value) : null }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none"
               >
                 <option value="">Select Account</option>
-                {ACCOUNTS.map((acc) => (
+                {accounts.map((acc: Account) => (
                   <option key={acc.account_id} value={acc.account_id}>
-                    {acc.account_description} ({acc.account_id})
+                    {acc.account_name} ({acc.account_id})
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Payment Date *
               </label>
               <input
@@ -440,24 +482,24 @@ function NewVoucherPage() {
                 type="date"
                 value={formData.paymentDate}
                 onChange={handleChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Pay Type *
               </label>
               <select
                 name="payType"
                 value={formData.payType}
                 onChange={handleChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none"
               >
                 <option value="">Select Pay Type</option>
                 {PAY_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                  <option key={type.value} value={type.value}>
+                    {type.label}
                   </option>
                 ))}
               </select>
@@ -465,7 +507,7 @@ function NewVoucherPage() {
 
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Description
               </label>
               <textarea
@@ -473,7 +515,7 @@ function NewVoucherPage() {
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
                 placeholder="Payment description..."
               />
             </div>

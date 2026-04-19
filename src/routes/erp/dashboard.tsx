@@ -3,8 +3,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { desc, eq } from "drizzle-orm";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
-
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
@@ -13,18 +11,34 @@ import { t } from "#/lib/server/database";
 const getDashboardData = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .handler(async ({ context }) => {
-    const invoices = await context.db
-      .select()
-      .from(t.invoices)
-      .where(eq(t.invoices.user_id, context.auth.profile.user_id))
-      .orderBy(desc(t.invoices.invoice_id));
+    const [invoices, vouchers, voucherInvoices] = await Promise.all([
+      context.db
+        .select()
+        .from(t.invoices)
+        .where(eq(t.invoices.user_id, context.auth.profile.user_id))
+        .orderBy(desc(t.invoices.invoice_id)),
+      context.db
+        .select({
+          payment_id: t.payment.payment_id,
+          voucher_number: t.payment.voucher_number,
+          payment_date: t.payment.payment_date,
+          pay_type: t.payment.pay_type,
+          total_amount: t.payment.total_amount,
+        })
+        .from(t.payment)
+        .where(eq(t.payment.user_id, context.auth.profile.user_id))
+        .orderBy(desc(t.payment.payment_id)),
+      context.db
+        .select({
+          payment_id: t.payment_invoice.payment_id,
+          invoice_id: t.payment_invoice.invoice_id,
+        })
+        .from(t.payment_invoice)
+        .innerJoin(t.payment, eq(t.payment_invoice.payment_id, t.payment.payment_id))
+        .where(eq(t.payment.user_id, context.auth.profile.user_id)),
+    ]);
 
-    const vendors = await context.db
-      .select()
-      .from(t.vendor)
-      .orderBy(desc(t.vendor.vendor_id));
-
-    return { invoices, vendors };
+    return { invoices, vouchers, voucherInvoices };
   });
 
 export const Route = createFileRoute("/erp/dashboard")({
@@ -36,25 +50,21 @@ export const Route = createFileRoute("/erp/dashboard")({
 });
 
 type Invoice = Record<string, any>;
-type Vendor = Record<string, any>;
+type Voucher = Record<string, any>;
+type VoucherInvoice = Record<string, any>;
 
 function Dashboard() {
   const navigate = useNavigate();
   const loaderData = Route.useLoaderData() as {
     invoices: Invoice[];
-    vendors: Vendor[];
+    vouchers: Voucher[];
+    voucherInvoices: VoucherInvoice[];
   };
-  const [invoices, _setInvoices] = useState<Invoice[]>(loaderData.invoices);
-  const [vendors, _setVendors] = useState<Vendor[]>(loaderData.vendors);
-  const [showAllInvoices, setShowAllInvoices] = useState(false);
-  const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | number | null>(null);
+  const invoices = loaderData.invoices;
+  const vouchers = loaderData.vouchers;
+  const voucherInvoices = loaderData.voucherInvoices;
+  const [showAllVouchers, setShowAllVouchers] = useState(false);
   const loading = false;
-
-  const vendorMap = useMemo(() => {
-    const map = new Map<number, string>();
-    vendors.forEach((v) => map.set(v.vendor_id, v.vendor_name));
-    return map;
-  }, [vendors]);
 
   const stats = useMemo(() => {
     const totalInvoices = invoices.length;
@@ -62,46 +72,11 @@ function Dashboard() {
       (sum, inv) => sum + Number(inv.total ?? inv.amount ?? inv.total_amount ?? 0),
       0,
     );
-    const paidInvoices = invoices.filter((inv) => (inv.status ?? "draft") === "paid").length;
+    const paidInvoices = invoices.filter((inv) => Boolean(inv.is_paid)).length;
     const conversionRate = totalInvoices ? Math.round((paidInvoices / totalInvoices) * 100) : 0;
     const totalCustomers = new Set(invoices.map((inv) => inv.vendor_id).filter(Boolean)).size;
     return { totalInvoices, totalRevenue, paidInvoices, conversionRate, totalCustomers };
   }, [invoices]);
-
-  async function updateInvoiceStatus(invoice: Invoice, newStatus: string) {
-    const invoiceId = invoice.id ?? invoice.invoice_id ?? invoice.invoice_number;
-    if (!invoiceId) return;
-
-    setUpdatingInvoiceId(invoiceId);
-    try {
-      if (supabaseBrowser && invoice.id) {
-        const { error } = await supabaseBrowser
-          .from("invoices")
-          .update({ status: newStatus })
-          .eq("id", invoice.id);
-        if (error) throw error;
-      } else {
-        const stored: Invoice[] = JSON.parse(localStorage.getItem("erp_invoices") ?? "[]");
-        const updated = stored.map((inv) => {
-          const curr = inv.id ?? inv.invoice_id ?? inv.invoice_number;
-          return curr === invoiceId ? { ...inv, status: newStatus } : inv;
-        });
-        localStorage.setItem("erp_invoices", JSON.stringify(updated));
-      }
-
-      _setInvoices((prev) =>
-        prev.map((inv) => {
-          const curr = inv.id ?? inv.invoice_id ?? inv.invoice_number;
-          return curr === invoiceId ? { ...inv, status: newStatus } : inv;
-        }),
-      );
-    } catch (err) {
-      console.error("Failed to update invoice status", err);
-      alert("Failed to update invoice status.");
-    } finally {
-      setUpdatingInvoiceId(null);
-    }
-  }
 
   function handleLogout() {
     sessionStorage.clear();
@@ -119,6 +94,7 @@ function Dashboard() {
         conversion_rate: `${stats.conversionRate}%`,
       },
       invoices,
+      vouchers,
     };
 
     const dataStr = JSON.stringify(report, null, 2);
@@ -130,8 +106,17 @@ function Dashboard() {
     link.click();
   }
 
-  const recentInvoices = invoices.slice(0, 5);
-  const displayedInvoices = showAllInvoices ? invoices : recentInvoices;
+  const invoiceCountByPaymentId = useMemo(() => {
+    const countMap = new Map<number, number>();
+    voucherInvoices.forEach((row) => {
+      const paymentId = Number(row.payment_id);
+      countMap.set(paymentId, (countMap.get(paymentId) ?? 0) + 1);
+    });
+    return countMap;
+  }, [voucherInvoices]);
+
+  const recentVouchers = vouchers.slice(0, 5);
+  const displayedVouchers = showAllVouchers ? vouchers : recentVouchers;
 
   return (
     <DashboardLayout title="Finance Control Center">
@@ -192,13 +177,13 @@ function Dashboard() {
               <li className="flex items-center justify-between border-b border-white/5 pb-2">
                 <span>Paid</span>
                 <span className="font-semibold">
-                  {invoices.filter((i) => i.status === "paid").length}
+                  {invoices.filter((i) => Boolean(i.is_paid)).length}
                 </span>
               </li>
               <li className="flex items-center justify-between">
-                <span>Draft</span>
+                <span>Unpaid</span>
                 <span className="font-semibold">
-                  {invoices.filter((i) => i.status === "draft" || !i.status).length}
+                  {invoices.filter((i) => !Boolean(i.is_paid)).length}
                 </span>
               </li>
             </ul>
@@ -249,17 +234,17 @@ function Dashboard() {
 
         <section className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold">Previous Vouchers / Bills</h3>
+            <h3 className="text-lg font-semibold">Previous Vouchers</h3>
             <div className="flex items-center gap-3">
               <span className="text-sm text-slate-400">
-                Showing {displayedInvoices.length} of {invoices.length}
+                Showing {displayedVouchers.length} of {vouchers.length}
               </span>
-              {invoices.length > 5 && (
+              {vouchers.length > 5 && (
                 <button
                   className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                  onClick={() => setShowAllInvoices((prev) => !prev)}
+                  onClick={() => setShowAllVouchers((prev) => !prev)}
                 >
-                  {showAllInvoices ? "Show Recent Only" : "View All Previous Bills"}
+                  {showAllVouchers ? "Show Recent Only" : "View All Previous Vouchers"}
                 </button>
               )}
             </div>
@@ -270,19 +255,19 @@ function Dashboard() {
               <thead className="text-slate-400">
                 <tr>
                   <th className="border-b border-white/10 px-3 py-2 text-left font-semibold">
-                    Invoice #
+                    Voucher #
                   </th>
                   <th className="border-b border-white/10 px-3 py-2 text-left font-semibold">
-                    Customer
+                    Payment Date
                   </th>
                   <th className="border-b border-white/10 px-3 py-2 text-left font-semibold">
-                    Date
+                    Pay Type
                   </th>
                   <th className="border-b border-white/10 px-3 py-2 text-left font-semibold">
-                    Amount
+                    Invoices
                   </th>
                   <th className="border-b border-white/10 px-3 py-2 text-left font-semibold">
-                    Status
+                    Total Amount
                   </th>
                 </tr>
               </thead>
@@ -290,55 +275,42 @@ function Dashboard() {
                 {loading ? (
                   <tr>
                     <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                      Loading invoices...
+                      Loading vouchers...
                     </td>
                   </tr>
-                ) : displayedInvoices.length === 0 ? (
+                ) : displayedVouchers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-3 py-6 text-center text-slate-400">
-                      No invoices yet. Create one to get started.
+                      No vouchers yet. Create one to get started.
                     </td>
                   </tr>
                 ) : (
-                  displayedInvoices.map((invoice, idx) => {
-                    const invoiceId = invoice.id ?? invoice.invoice_id ?? invoice.invoice_number;
-                    const currentStatus = invoice.status ?? "draft";
+                  displayedVouchers.map((voucher, idx) => {
+                    const paymentId = Number(voucher.payment_id);
+                    const invoiceCount = invoiceCountByPaymentId.get(paymentId) ?? 0;
+                    const payTypeText = String(voucher.pay_type ?? "")
+                      .split("_")
+                      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                      .join(" ");
 
                     return (
                     <tr key={idx} className="hover:bg-white/5">
                       <td className="border-b border-white/5 px-3 py-2 font-semibold">
-                        {invoice.invoice_number ?? invoice.invoice_id ?? "—"}
-                      </td>
-                      <td className="border-b border-white/5 px-3 py-2">
-                        {vendorMap.get(invoice.vendor_id) ?? "—"}
+                        {voucher.voucher_number ?? "—"}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2 text-slate-300">
-                        {invoice.date
-                          ? new Date(invoice.date).toLocaleDateString()
-                          : invoice.created_at
-                            ? new Date(invoice.created_at).toLocaleDateString()
-                            : "—"}
+                        {voucher.payment_date
+                          ? new Date(voucher.payment_date).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="border-b border-white/5 px-3 py-2 text-slate-300">
+                        {payTypeText || "—"}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        ${Number(invoice.total ?? invoice.amount ?? 0).toLocaleString()}
+                        {invoiceCount}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        <select
-                          value={currentStatus}
-                          disabled={updatingInvoiceId === invoiceId}
-                          onChange={(e) => void updateInvoiceStatus(invoice, e.target.value)}
-                          className="rounded-lg border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-slate-100 outline-none"
-                        >
-                          <option value="draft" className="text-black">
-                            Draft
-                          </option>
-                          <option value="sent" className="text-black">
-                            Sent
-                          </option>
-                          <option value="paid" className="text-black">
-                            Paid
-                          </option>
-                        </select>
+                        ${Number(voucher.total_amount ?? 0).toLocaleString()}
                       </td>
                     </tr>
                   );
