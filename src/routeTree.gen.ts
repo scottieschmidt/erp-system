@@ -10,17 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
-import { Route as NewVoucherRouteImport } from './routes/new-voucher'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as InvoiceIndexRouteImport } from './routes/invoice/index'
 import { Route as InvoiceNewRouteImport } from './routes/invoice/new'
 import { Route as InvoiceIdRouteImport } from './routes/invoice/$id'
+import { Route as ErpNewVoucherRouteImport } from './routes/erp/new-voucher'
 import { Route as ErpNewUserRouteImport } from './routes/erp/new-user'
 import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
+import { Route as ErpAccountsRouteImport } from './routes/erp/accounts'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as ErpVendorIndexRouteImport } from './routes/erp/vendor/index'
@@ -33,19 +33,9 @@ const TestRoute = TestRouteImport.update({
   path: '/test',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NewVoucherRoute = NewVoucherRouteImport.update({
-  id: '/new-voucher',
-  path: '/new-voucher',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountsRoute = AccountsRouteImport.update({
-  id: '/accounts',
-  path: '/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -73,6 +63,11 @@ const InvoiceIdRoute = InvoiceIdRouteImport.update({
   path: '/invoice/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ErpNewVoucherRoute = ErpNewVoucherRouteImport.update({
+  id: '/erp/new-voucher',
+  path: '/erp/new-voucher',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ErpNewUserRoute = ErpNewUserRouteImport.update({
   id: '/erp/new-user',
   path: '/erp/new-user',
@@ -86,6 +81,11 @@ const ErpInvoiceRoute = ErpInvoiceRouteImport.update({
 const ErpDashboardRoute = ErpDashboardRouteImport.update({
   id: '/erp/dashboard',
   path: '/erp/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErpAccountsRoute = ErpAccountsRouteImport.update({
+  id: '/erp/accounts',
+  path: '/erp/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRegisterRoute = AuthRegisterRouteImport.update({
@@ -121,15 +121,15 @@ const AuthPasswordForgotRoute = AuthPasswordForgotRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRoute
   '/dashboard': typeof DashboardRoute
-  '/new-voucher': typeof NewVoucherRoute
   '/test': typeof TestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/erp/accounts': typeof ErpAccountsRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
   '/invoice/': typeof InvoiceIndexRoute
@@ -141,15 +141,15 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRoute
   '/dashboard': typeof DashboardRoute
-  '/new-voucher': typeof NewVoucherRoute
   '/test': typeof TestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/erp/accounts': typeof ErpAccountsRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
   '/invoice': typeof InvoiceIndexRoute
@@ -162,15 +162,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRoute
   '/dashboard': typeof DashboardRoute
-  '/new-voucher': typeof NewVoucherRoute
   '/test': typeof TestRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
+  '/erp/accounts': typeof ErpAccountsRoute
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
+  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
   '/invoice/': typeof InvoiceIndexRoute
@@ -184,15 +184,15 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/accounts'
     | '/dashboard'
-    | '/new-voucher'
     | '/test'
     | '/auth/login'
     | '/auth/register'
+    | '/erp/accounts'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
+    | '/erp/new-voucher'
     | '/invoice/$id'
     | '/invoice/new'
     | '/invoice/'
@@ -204,15 +204,15 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/accounts'
     | '/dashboard'
-    | '/new-voucher'
     | '/test'
     | '/auth/login'
     | '/auth/register'
+    | '/erp/accounts'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
+    | '/erp/new-voucher'
     | '/invoice/$id'
     | '/invoice/new'
     | '/invoice'
@@ -224,15 +224,15 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/accounts'
     | '/dashboard'
-    | '/new-voucher'
     | '/test'
     | '/auth/login'
     | '/auth/register'
+    | '/erp/accounts'
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
+    | '/erp/new-voucher'
     | '/invoice/$id'
     | '/invoice/new'
     | '/invoice/'
@@ -245,15 +245,15 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountsRoute: typeof AccountsRoute
   DashboardRoute: typeof DashboardRoute
-  NewVoucherRoute: typeof NewVoucherRoute
   TestRoute: typeof TestRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthRegisterRoute: typeof AuthRegisterRoute
+  ErpAccountsRoute: typeof ErpAccountsRoute
   ErpDashboardRoute: typeof ErpDashboardRoute
   ErpInvoiceRoute: typeof ErpInvoiceRoute
   ErpNewUserRoute: typeof ErpNewUserRoute
+  ErpNewVoucherRoute: typeof ErpNewVoucherRoute
   InvoiceIdRoute: typeof InvoiceIdRoute
   InvoiceNewRoute: typeof InvoiceNewRoute
   InvoiceIndexRoute: typeof InvoiceIndexRoute
@@ -273,25 +273,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TestRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/new-voucher': {
-      id: '/new-voucher'
-      path: '/new-voucher'
-      fullPath: '/new-voucher'
-      preLoaderRoute: typeof NewVoucherRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/accounts': {
-      id: '/accounts'
-      path: '/accounts'
-      fullPath: '/accounts'
-      preLoaderRoute: typeof AccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -329,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/erp/new-voucher': {
+      id: '/erp/new-voucher'
+      path: '/erp/new-voucher'
+      fullPath: '/erp/new-voucher'
+      preLoaderRoute: typeof ErpNewVoucherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/erp/new-user': {
       id: '/erp/new-user'
       path: '/erp/new-user'
@@ -348,6 +341,13 @@ declare module '@tanstack/react-router' {
       path: '/erp/dashboard'
       fullPath: '/erp/dashboard'
       preLoaderRoute: typeof ErpDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/erp/accounts': {
+      id: '/erp/accounts'
+      path: '/erp/accounts'
+      fullPath: '/erp/accounts'
+      preLoaderRoute: typeof ErpAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/register': {
@@ -397,15 +397,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountsRoute: AccountsRoute,
   DashboardRoute: DashboardRoute,
-  NewVoucherRoute: NewVoucherRoute,
   TestRoute: TestRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthRegisterRoute: AuthRegisterRoute,
+  ErpAccountsRoute: ErpAccountsRoute,
   ErpDashboardRoute: ErpDashboardRoute,
   ErpInvoiceRoute: ErpInvoiceRoute,
   ErpNewUserRoute: ErpNewUserRoute,
+  ErpNewVoucherRoute: ErpNewVoucherRoute,
   InvoiceIdRoute: InvoiceIdRoute,
   InvoiceNewRoute: InvoiceNewRoute,
   InvoiceIndexRoute: InvoiceIndexRoute,

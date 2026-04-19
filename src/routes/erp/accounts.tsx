@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-export const Route = createFileRoute("/accounts")({
+export const Route = createFileRoute("/erp/accounts")({
   component: AccountsPage,
 });
 
