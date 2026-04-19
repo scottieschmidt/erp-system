@@ -93,7 +93,15 @@ function EditInvoicePage() {
 
   return (
     <div className="mx-auto my-8 max-w-5xl rounded-lg border border-gray-300 p-6 shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">Edit Invoice</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900">Edit Invoice</h2>
+        <button
+          onClick={() => router.navigate({ to: "/invoice" })}
+          className="rounded bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
+        >
+          Back to Invoices
+        </button>
+      </div>
 
       {successMessage && (
         <div className="mb-4 rounded-md border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-700">

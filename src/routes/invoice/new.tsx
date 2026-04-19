@@ -137,12 +137,12 @@ function NewInvoicePage() {
     <div className="mx-auto my-8 max-w-5xl rounded-lg border border-gray-300 p-6 shadow">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-900">Create Invoice</h2>
-        <Link
-          to="/invoice"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+        <button
+          onClick={() => router.navigate({ to: "/invoice" })}
+          className="rounded bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
         >
-          ← Back to invoices
-        </Link>
+          Back to Invoices
+        </button>
       </div>
 
       {successMessage && (
