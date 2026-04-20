@@ -1,324 +1,75 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { createServerFn } from "@tanstack/react-start";
+import { asc } from "drizzle-orm";
 
-import { supabaseBrowser } from "#/lib/supabaseBrowser";
+import { DashboardLayout } from "#/components/layout/dashboard";
+import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
+import { DatabaseProvider } from "#/lib/provider";
+import { t } from "#/lib/server/database";
+
+type UserRow = {
+  full_name: string;
+  email: string;
+};
+
+const getUsers = createServerFn()
+  .middleware([DatabaseProvider, MustAuthenticate])
+  .handler(async ({ context }) => {
+    const users = await context.db
+      .select({
+        full_name: t.users.full_name,
+        email: t.users.email,
+      })
+      .from(t.users)
+      .orderBy(asc(t.users.full_name));
+
+    return users ?? [];
+  });
 
 export const Route = createFileRoute("/erp/new-user")({
-  component: UserInsertPage,
+  component: UsersPage,
+  beforeLoad: async ({ context }) => {
+    await redirectIfSignedOut(context);
+  },
+  loader: () => getUsers(),
 });
 
-const ROLE_OPTIONS = [
-  { id: 1, label: "Admin" },
-  { id: 2, label: "Accounting" },
-  { id: 3, label: "Manager" },
-  { id: 4, label: "Employee" },
-  { id: 5, label: "Read Only" },
-] as const;
-
-const DEPT_OPTIONS = [
-  { id: 1, label: "Accounting" },
-  { id: 2, label: "Finance" },
-  { id: 3, label: "Human Resources" },
-  { id: 4, label: "Information Technology" },
-  { id: 5, label: "Procurement" },
-  { id: 6, label: "Operations" },
-] as const;
-
-type UserInsertResult = {
-  user_id: number;
-  created_at: string;
-  role_id: number | null;
-  dept_id: number | null;
-  password: string | null;
-  email: string | null;
-  full_name: string | null;
-};
-
-type SupabaseUser = {
-  user_id: number;
-  created_at: string;
-  role_id: number | null;
-  dept_id: number | null;
-  email: string | null;
-  full_name: string | null;
-};
-
-function UserInsertPage() {
-  const [loading, setLoading] = useState(false);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [roleId, setRoleId] = useState("");
-  const [deptId, setDeptId] = useState("");
-  const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [lastInserted, setLastInserted] = useState<UserInsertResult | null>(null);
-  const [users, setUsers] = useState<SupabaseUser[]>([]);
-
-  async function loadUsers() {
-    if (!supabaseBrowser) return;
-    setUsersLoading(true);
-    try {
-      const { data, error } = await supabaseBrowser
-        .from("users")
-        .select("user_id, created_at, role_id, dept_id, email, full_name")
-        .order("user_id", { ascending: true });
-      if (error) {
-        setMessage({ type: "error", text: `Failed to load users: ${error.message}` });
-      } else {
-        setUsers(data ?? []);
-      }
-    } finally {
-      setUsersLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadUsers();
-  }, []);
-
-  const handleInsert = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    setLastInserted(null);
-
-    const parsedRoleId = Number.parseInt(roleId, 10);
-    const parsedDeptId = Number.parseInt(deptId, 10);
-    const trimmedPassword = password.trim();
-    const trimmedEmail = email.trim();
-    const trimmedFullName = fullName.trim();
-
-    if (
-      !Number.isInteger(parsedRoleId) ||
-      !Number.isInteger(parsedDeptId) ||
-      !trimmedPassword ||
-      !trimmedFullName
-    ) {
-      setMessage({
-        type: "error",
-        text: "Please fill in role, department, password, and full name.",
-      });
-      setLoading(false);
-      return;
-    }
-
-    if (!supabaseBrowser) {
-      setMessage({
-        type: "error",
-        text: "Supabase is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
-      });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const insertPayload = {
-        role_id: parsedRoleId,
-        dept_id: parsedDeptId,
-        password: trimmedPassword,
-        email: trimmedEmail || null,
-        full_name: trimmedFullName,
-      };
-
-      const { data, error } = await supabaseBrowser
-        .from("users")
-        .insert([insertPayload])
-        .select("user_id, created_at, role_id, dept_id, password, email, full_name")
-        .single();
-
-      if (error) {
-        console.error(error);
-        setMessage({ type: "error", text: `Error: ${error.message}` });
-      } else {
-        setLastInserted(data);
-        setRoleId("");
-        setDeptId("");
-        setPassword("");
-        setEmail("");
-        setFullName("");
-        setMessage({ type: "success", text: `User created successfully (ID: ${data.user_id}).` });
-        await loadUsers();
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage({ type: "error", text: "Unexpected error while inserting user." });
-    }
-
-    setLoading(false);
-  };
+function UsersPage() {
+  const users = Route.useLoaderData() as UserRow[];
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
-        <h1 className="mb-2 text-2xl font-semibold">New User</h1>
-        <p className="mb-6 text-sm text-slate-300">
-          Insert a new row into the <code>users</code> table. <code>user_id</code> and{" "}
-          <code>created_at</code> are auto-generated by Supabase.
-        </p>
+    <DashboardLayout title="Users">
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
+        <h2 className="text-xl font-semibold">All Users</h2>
+        <p className="mt-1 text-sm text-slate-400">Showing all users and emails from Supabase.</p>
 
-        <form onSubmit={handleInsert} className="space-y-4">
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-300">Full Name</span>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Johnson"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-400"
-            />
-          </label>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-300">Role</span>
-              <select
-                value={roleId}
-                onChange={(e) => setRoleId(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
-              >
-                <option value="" className="bg-slate-900 text-slate-200">
-                  Select role
-                </option>
-                {ROLE_OPTIONS.map((role) => (
-                  <option key={role.id} value={role.id} className="bg-slate-900 text-slate-200">
-                    {role.id} - {role.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="text-slate-300">Department</span>
-              <select
-                value={deptId}
-                onChange={(e) => setDeptId(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none"
-              >
-                <option value="" className="bg-slate-900 text-slate-200">
-                  Select department
-                </option>
-                {DEPT_OPTIONS.map((dept) => (
-                  <option key={dept.id} value={dept.id} className="bg-slate-900 text-slate-200">
-                    {dept.id} - {dept.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-300">Password</span>
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="pass"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-400"
-            />
-          </label>
-
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="text-slate-300">Email (optional)</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="johnson@company.com"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-400"
-            />
-          </label>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-cyan-500/30 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {loading ? "Saving..." : "Create User"}
-            </button>
-          </div>
-        </form>
-
-        {message && (
-          <div
-            className={`mt-4 rounded-lg px-3 py-2 text-sm ${
-              message.type === "success"
-                ? "border border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                : "border border-red-400/40 bg-red-400/10 text-red-100"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        {lastInserted && (
-          <div className="mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/10 p-3 text-sm text-cyan-100">
-            <p className="font-semibold">Inserted row</p>
-            <p>ID: {lastInserted.user_id}</p>
-            <p>Full Name: {lastInserted.full_name ?? "-"}</p>
-            <p>Created At: {lastInserted.created_at}</p>
-            <p>Role ID: {lastInserted.role_id ?? "-"}</p>
-            <p>Department ID: {lastInserted.dept_id ?? "-"}</p>
-            <p>Password: {lastInserted.password ?? "-"}</p>
-            <p>Email: {lastInserted.email ?? "-"}</p>
-          </div>
-        )}
-
-        <div className="mt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">All Users</h2>
-            <button
-              type="button"
-              onClick={() => void loadUsers()}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
-            >
-              Refresh Users
-            </button>
-          </div>
-
-          <div className="overflow-x-auto rounded-lg border border-white/10">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-900/70 text-slate-300">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-white/10">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-900/70 text-slate-300">
+              <tr>
+                <th className="px-3 py-2 text-left">Full Name</th>
+                <th className="px-3 py-2 text-left">Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
                 <tr>
-                  <th className="px-3 py-2 text-left">User ID</th>
-                  <th className="px-3 py-2 text-left">Created</th>
-                  <th className="px-3 py-2 text-left">Role ID</th>
-                  <th className="px-3 py-2 text-left">Dept ID</th>
-                  <th className="px-3 py-2 text-left">Full Name</th>
-                  <th className="px-3 py-2 text-left">Email</th>
+                  <td colSpan={2} className="px-3 py-4 text-slate-400">
+                    No users found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {usersLoading ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-4 text-slate-400">
-                      Loading users...
-                    </td>
+              ) : (
+                users.map((user, index) => (
+                  <tr key={`${user.email}-${index}`} className="border-t border-white/10 text-slate-100">
+                    <td className="px-3 py-2">{user.full_name}</td>
+                    <td className="px-3 py-2">{user.email}</td>
                   </tr>
-                ) : users.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-4 text-slate-400">
-                      No users found.
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((u) => (
-                    <tr key={u.user_id} className="border-t border-white/10 text-slate-100">
-                      <td className="px-3 py-2">{u.user_id}</td>
-                      <td className="px-3 py-2">{u.created_at}</td>
-                      <td className="px-3 py-2">{u.role_id ?? "-"}</td>
-                      <td className="px-3 py-2">{u.dept_id ?? "-"}</td>
-                      <td className="px-3 py-2">{u.full_name ?? "-"}</td>
-                      <td className="px-3 py-2">{u.email ?? "-"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
-    </div>
+      </section>
+    </DashboardLayout>
   );
 }
