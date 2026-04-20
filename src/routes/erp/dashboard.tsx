@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { desc, eq } from "drizzle-orm";
 
+import { RevenueChart } from "#/components/charts/revenue-chart";
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
@@ -117,6 +118,36 @@ function Dashboard() {
 
   const recentVouchers = vouchers.slice(0, 5);
   const displayedVouchers = showAllVouchers ? vouchers : recentVouchers;
+  const revenuePoints = useMemo(() => {
+    const monthlyTotals = new Map<string, number>();
+
+    invoices.forEach((invoice) => {
+      const rawDate = invoice.invoice_date ?? invoice.created_date ?? invoice.created_at;
+      if (!rawDate) return;
+
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const total = Number(invoice.total ?? invoice.amount ?? invoice.total_amount ?? 0);
+      monthlyTotals.set(key, (monthlyTotals.get(key) ?? 0) + total);
+    });
+
+    return Array.from(monthlyTotals.entries())
+      .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
+      .slice(-12)
+      .map(([month, total]) => {
+        const [year, monthNum] = month.split("-");
+        const monthLabel = new Date(Number(year), Number(monthNum) - 1, 1).toLocaleString(
+          undefined,
+          { month: "short" },
+        );
+        return {
+          label: `${monthLabel} ${year.slice(-2)}`,
+          total,
+        };
+      });
+  }, [invoices]);
 
   return (
     <DashboardLayout title="Finance Control Center">
@@ -169,6 +200,8 @@ function Dashboard() {
           <StatCard label="Customers" value={stats.totalCustomers.toString()} />
           <StatCard label="Conversion" value={`${stats.conversionRate}%`} />
         </section>
+
+        <RevenueChart points={revenuePoints} />
 
         <section className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
