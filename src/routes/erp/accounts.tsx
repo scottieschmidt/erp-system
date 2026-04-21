@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { eq, desc } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
@@ -22,45 +22,45 @@ type Invoice = {
   vendor_name: string | null;
 };
 
-const ACCOUNTS: Account[] = [
-  { account_id: 1000, account_description: "Cash" },
-  { account_id: 1100, account_description: "Accounts Receivable" },
-  { account_id: 2000, account_description: "Accounts Payable" },
-  { account_id: 4000, account_description: "Revenue" },
-  { account_id: 5000, account_description: "Office Supplies" },
-  { account_id: 5100, account_description: "Professional Services" },
-  { account_id: 5200, account_description: "Utilities" },
-  { account_id: 5300, account_description: "Travel & Entertainment" },
-  { account_id: 6000, account_description: "Depreciation" },
-];
-
-const getUserInvoices = createServerFn()
+const getAccountsPageData = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .handler(async ({ context }) => {
     try {
       if (!context.auth.profile?.user_id) {
-        console.error('Profile or user_id is missing:', context.auth.profile);
-        return [];
+        console.error("Profile or user_id is missing:", context.auth.profile);
+        return { invoices: [], accounts: [] };
       }
-      
-      const invoices = await context.db
-        .select({
-          invoice_id: t.invoices.invoice_id,
-          account_id: t.invoices.account_id,
-          vendor_id: t.invoices.vendor_id,
-          invoice_date: t.invoices.invoice_date,
-          amount: t.invoices.amount,
-          vendor_name: t.vendor.vendor_name,
-        })
-        .from(t.invoices)
-        .leftJoin(t.vendor, eq(t.invoices.vendor_id, t.vendor.vendor_id))
-        .where(eq(t.invoices.user_id, context.auth.profile.user_id))
-        .orderBy(desc(t.invoices.invoice_id));
 
-      return invoices || [];
+      const [invoices, accounts] = await Promise.all([
+        context.db
+          .select({
+            invoice_id: t.invoices.invoice_id,
+            account_id: t.invoices.account_id,
+            vendor_id: t.invoices.vendor_id,
+            invoice_date: t.invoices.invoice_date,
+            amount: t.invoices.amount,
+            vendor_name: t.vendor.vendor_name,
+          })
+          .from(t.invoices)
+          .leftJoin(t.vendor, eq(t.invoices.vendor_id, t.vendor.vendor_id))
+          .where(eq(t.invoices.user_id, context.auth.profile.user_id))
+          .orderBy(desc(t.invoices.invoice_id)),
+        context.db
+          .select({
+            account_id: t.gl_accounts.account_id,
+            account_description: t.gl_accounts.account_name,
+          })
+          .from(t.gl_accounts)
+          .orderBy(asc(t.gl_accounts.account_id)),
+      ]);
+
+      return {
+        invoices: invoices ?? [],
+        accounts: accounts ?? [],
+      };
     } catch (error) {
-      console.error('Error loading invoices:', error);
-      return [];
+      console.error("Error loading accounts page data:", error);
+      return { invoices: [], accounts: [] };
     }
   });
 
@@ -69,37 +69,30 @@ export const Route = createFileRoute("/erp/accounts")({
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
   },
-  loader: () => getUserInvoices(),
+  loader: () => getAccountsPageData(),
 });
 
 function AccountsPage() {
-  const invoices = Route.useLoaderData() as Invoice[];
-  
-  // Add error handling for missing data
-  if (!invoices) {
-    return (
-      <DashboardLayout title="Accounts">
-        <div className="text-center text-slate-400">
-          Loading accounts data...
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const loaderData = Route.useLoaderData() as {
+    invoices: Invoice[];
+    accounts: Account[];
+  };
+  const invoices = loaderData.invoices ?? [];
+  const accounts = loaderData.accounts ?? [];
   const [search, setSearch] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
   const filteredAccounts = useMemo(
     () =>
-      ACCOUNTS.filter((account) =>
+      accounts.filter((account) =>
         account.account_description.toLowerCase().includes(search.toLowerCase()),
       ),
-    [search],
+    [accounts, search],
   );
 
   const selectedAccount = useMemo(
-    () =>
-      ACCOUNTS.find((account) => account.account_id === selectedAccountId) ?? null,
-    [selectedAccountId],
+    () => accounts.find((account) => account.account_id === selectedAccountId) ?? null,
+    [accounts, selectedAccountId],
   );
 
   const visibleInvoices = useMemo(
@@ -111,8 +104,7 @@ function AccountsPage() {
   );
 
   const totalAmount = useMemo(
-    () =>
-      visibleInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0),
+    () => visibleInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0),
     [visibleInvoices],
   );
 

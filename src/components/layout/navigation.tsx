@@ -3,6 +3,7 @@ import clsx from "clsx";
 import * as Icon from "lucide-react";
 import { type ComponentType } from "react";
 
+import { useAuthInfoQuery } from "#/lib/auth";
 import { type FileRouteTypes } from "#/routeTree.gen";
 
 type NavigationItem = {
@@ -57,7 +58,9 @@ interface NavigationProps {
 }
 
 export function Navigation(props: NavigationProps) {
+  const auth = useAuthInfoQuery();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isAdmin = auth.data?.profile?.role_id === 1;
 
   return (
     <div className={clsx("flex flex-col px-4 py-5", props.className)}>
@@ -67,16 +70,18 @@ export function Navigation(props: NavigationProps) {
         ))}
       </nav>
 
-      <div className="mt-4 border-t border-white/10 pt-4">
-        <div className="mb-2 px-2 text-[11px] font-semibold tracking-[0.2em] text-slate-500 uppercase">
-          Administration
+      {isAdmin && (
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <div className="mb-2 px-2 text-[11px] font-semibold tracking-[0.2em] text-slate-500 uppercase">
+            Administration
+          </div>
+          <nav className="space-y-1" aria-label="Administration">
+            {adminNav.map((item) => (
+              <NavLink key={item.to} pathname={pathname} {...item} />
+            ))}
+          </nav>
         </div>
-        <nav className="space-y-1" aria-label="Administration">
-          {adminNav.map((item) => (
-            <NavLink key={item.to} pathname={pathname} {...item} />
-          ))}
-        </nav>
-      </div>
+      )}
     </div>
   );
 }
