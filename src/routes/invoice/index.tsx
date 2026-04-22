@@ -337,7 +337,7 @@ function ListInvoicePage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              to="/erp/new-voucher"
+              to="/voucher/new"
               className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/25"
             >
               New Voucher

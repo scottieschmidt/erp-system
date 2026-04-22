@@ -9,6 +9,10 @@ import {
   createInvoiceWithItemsForUser,
   listInvoiceFormOptions,
 } from "#/lib/server/database/invoice-service";
+import {
+  SESSION_TIMEOUT_RULES,
+  useSessionTimeoutTracker,
+} from "#/lib/session-timeout";
 import { formatDate } from "#/lib/utils";
 
 import { DataSchema, InvoiceForm } from "./-form";
@@ -43,6 +47,9 @@ function NewInvoicePage() {
   const router = useRouter();
   const { accounts, vendors } = Route.useLoaderData();
   const [successMessage, setSuccessMessage] = useState("");
+  const { remainingLabel } = useSessionTimeoutTracker({
+    rule: SESSION_TIMEOUT_RULES.newInvoice,
+  });
 
   const mutation = useMutation({
     mutationFn: createInvoice,
@@ -60,12 +67,17 @@ function NewInvoicePage() {
     <div className="mx-auto my-8 max-w-5xl rounded-lg border border-gray-300 p-6 shadow">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-900">Create Invoice</h2>
-        <button
-          onClick={() => router.navigate({ to: "/invoice" })}
-          className="rounded bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
-        >
-          Back to Invoices
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+            Session timeout: {remainingLabel}
+          </span>
+          <button
+            onClick={() => router.navigate({ to: "/invoice" })}
+            className="rounded bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600"
+          >
+            Back to Invoices
+          </button>
+        </div>
       </div>
 
       {successMessage && (

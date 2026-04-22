@@ -14,6 +14,10 @@ import { MustAuthenticate, redirectIfSignedOut } from "../../lib/auth";
 import { DatabaseProvider } from "../../lib/provider";
 import { t } from "../../lib/server/database";
 import { getDatabaseErrorReason } from "../../lib/server/database/invoices";
+import {
+  SESSION_TIMEOUT_RULES,
+  useSessionTimeoutTracker,
+} from "../../lib/session-timeout";
 
 type Account = {
   account_id: number;
@@ -194,7 +198,7 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
 
 
 
-export const Route = createFileRoute("/erp/new-voucher")({
+export const Route = createFileRoute("/voucher/new")({
   component: NewVoucherPage,
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
@@ -214,6 +218,9 @@ type VoucherFormData = {
 function NewVoucherPage() {
   const { invoices, accounts } = Route.useLoaderData();
   const router = useRouter();
+  const { remainingLabel } = useSessionTimeoutTracker({
+    rule: SESSION_TIMEOUT_RULES.createVoucher,
+  });
 
   const [formData, setFormData] = useState<VoucherFormData>({
     selectedInvoices: [],
@@ -370,6 +377,9 @@ function NewVoucherPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Create Payment Voucher</h1>
+          <span className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+            Session timeout: {remainingLabel}
+          </span>
         </div>
 
         {successMessage && (

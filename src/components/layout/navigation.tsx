@@ -30,7 +30,7 @@ const userNav: NavigationItem[] = [
   },
   {
     title: "Vouchers",
-    to: "/erp/new-voucher",
+    to: "/voucher",
     icon: Icon.Receipt,
   },
   {
