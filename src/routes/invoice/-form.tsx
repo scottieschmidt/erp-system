@@ -11,6 +11,17 @@ export const DataSchema = v.object({
   vendor_id: v.nullable(v.pipe(v.number(), v.integer())),
   invoice_date: v.string(),
   amount: MoneySchema,
+  line_items: v.pipe(
+    v.array(
+      v.object({
+        description: v.pipe(v.string(), v.nonEmpty("Description is required.")),
+        quantity: v.pipe(v.number(), v.minValue(0.000001)),
+        price: v.pipe(v.number(), v.minValue(0)),
+        tax_rate: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
+      }),
+    ),
+    v.minLength(1, "At least one line item is required."),
+  ),
 });
 
 export const FormSchema = v.object({
@@ -29,6 +40,12 @@ export interface InvoiceFormProps {
   errorText?: string;
   onSubmit: (data: v.InferInput<typeof DataSchema>) => Promise<void>;
   defaultValues: v.InferInput<typeof FormSchema>;
+  initialLineItems?: Array<{
+    description: string;
+    quantity: number;
+    price: number;
+    tax_rate: number;
+  }>;
   accounts?: { id: string; name: string }[];
   vendors?: { id: string; name: string }[];
 }
@@ -112,7 +129,17 @@ function getLineItemErrors(item: LineItem): string[] {
 }
 
 export function InvoiceForm(props: InvoiceFormProps) {
-  const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(() =>
+    props.initialLineItems?.length
+      ? props.initialLineItems.map((item) => ({
+          id: crypto.randomUUID(),
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          tax_rate: item.tax_rate,
+        }))
+      : [createEmptyLineItem()],
+  );
   const [submitDebugMessage, setSubmitDebugMessage] = useState<string | null>(null);
   const [priceInputsById, setPriceInputsById] = useState<Record<string, string>>({});
 
@@ -133,6 +160,10 @@ export function InvoiceForm(props: InvoiceFormProps) {
   }, [lineItems]);
 
   const calculatedTotalCents = useMemo(() => toCents(totals.total) ?? 0, [totals.total]);
+  const calculatedTotalText = useMemo(
+    () => (calculatedTotalCents / 100).toFixed(2),
+    [calculatedTotalCents],
+  );
   const lineItemErrorsById = useMemo(() => {
     const errors = new Map<string, string[]>();
     lineItems.forEach((item) => {
@@ -172,24 +203,21 @@ export function InvoiceForm(props: InvoiceFormProps) {
         return;
       }
 
-      const data = v.parse(FormSchema, value);
+      const parsedForm = v.parse(FormSchema, {
+        ...value,
+        // Always submit the computed total from line items.
+        amount: calculatedTotalText,
+      });
 
-      const amountCents = toCents(data.amount);
-      if (amountCents === null) {
-        setSubmitDebugMessage(
-          "Total Amount is invalid. Enter a dollar amount like 125.00.",
-        );
-        return;
-      }
-
-      if (amountCents !== calculatedTotalCents) {
-        setSubmitDebugMessage(
-          `Total Amount $${(amountCents / 100).toFixed(2)} must match calculated total $${(
-            calculatedTotalCents / 100
-          ).toFixed(2)}.`,
-        );
-        return;
-      }
+      const data = v.parse(DataSchema, {
+        ...parsedForm,
+        line_items: lineItems.map((item) => ({
+          description: item.description.trim(),
+          quantity: item.quantity,
+          price: item.price,
+          tax_rate: item.tax_rate,
+        })),
+      });
 
       await props.onSubmit(data);
     },
@@ -402,10 +430,6 @@ export function InvoiceForm(props: InvoiceFormProps) {
         <form.Field
           name="amount"
           children={(field) => {
-            const amountCents = toCents(field.state.value);
-            const isAmountMismatch =
-              amountCents !== null && amountCents !== calculatedTotalCents;
-
             return (
               <Field className="flex flex-col gap-1">
                 <Label>Total Amount</Label>
@@ -417,30 +441,15 @@ export function InvoiceForm(props: InvoiceFormProps) {
                     name={field.name}
                     type="text"
                     inputMode="decimal"
-                    value={field.state.value}
-                    onBlur={() => {
-                      field.handleBlur();
-                      field.handleChange(formatMoneyInput(field.state.value));
-                      setSubmitDebugMessage(null);
-                    }}
-                    onChange={(e) => {
-                      setSubmitDebugMessage(null);
-                      field.handleChange(sanitizeMoneyInput(e.target.value));
-                    }}
+                    value={calculatedTotalText}
+                    readOnly
                     required
-                    className="rounded-md border border-gray-300 py-2 pr-3 pl-7"
+                    className="rounded-md border border-gray-300 bg-gray-50 py-2 pr-3 pl-7 text-gray-700"
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  Enter the invoice total. It must match the calculated total from the
-                  line items below.
+                  Auto-calculated from the line items below.
                 </p>
-                {isAmountMismatch && (
-                  <p className="text-xs text-red-600">
-                    Entered total does not match line-item total of $
-                    {totals.total.toFixed(2)}.
-                  </p>
-                )}
                 <FieldError meta={field.state.meta} />
               </Field>
             );
@@ -604,24 +613,16 @@ export function InvoiceForm(props: InvoiceFormProps) {
       {props.errorText && <div className="text-sm text-red-600">{props.errorText}</div>}
 
       <form.Subscribe
-        selector={(state) =>
-          [state.canSubmit, state.isSubmitting, state.values.amount] as const
-        }
-        children={([canSubmit, isSubmitting, amount]) => {
-          const amountCents = toCents(amount);
-          const isAmountMismatch =
-            amountCents === null || amountCents !== calculatedTotalCents;
-
-          return (
-            <button
-              type="submit"
-              disabled={!canSubmit || isSubmitting || isAmountMismatch}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Submitting..." : props.submitText}
-            </button>
-          );
-        }}
+        selector={(state) => [state.canSubmit, state.isSubmitting] as const}
+        children={([canSubmit, isSubmitting]) => (
+          <button
+            type="submit"
+            disabled={!canSubmit || isSubmitting}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {isSubmitting ? "Submitting..." : props.submitText}
+          </button>
+        )}
       />
     </form>
   );
