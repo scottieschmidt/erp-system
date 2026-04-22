@@ -8,7 +8,7 @@ import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
 
-export const Route = createFileRoute("/erp/vendor/")({
+export const Route = createFileRoute("/vendor/")({
   component: VendorListPage,
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
@@ -53,7 +53,7 @@ function VendorListPage() {
           <div className="flex gap-2">
             <button
               className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/25"
-              onClick={() => navigate({ to: "/erp/vendor/new" })}
+              onClick={() => navigate({ to: "/vendor/new" })}
             >
               + New Vendor
             </button>

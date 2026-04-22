@@ -10,7 +10,7 @@ import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
 
-export const Route = createFileRoute("/erp/vendor/new")({
+export const Route = createFileRoute("/vendor/new")({
   component: VendorInsertPage,
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);

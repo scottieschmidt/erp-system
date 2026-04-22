@@ -35,7 +35,7 @@ const userNav: NavigationItem[] = [
   },
   {
     title: "Vendors",
-    to: "/erp/vendor",
+    to: "/vendor",
     icon: Icon.Building2,
   },
 ];
