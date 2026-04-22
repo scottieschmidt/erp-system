@@ -72,7 +72,7 @@ function Dashboard() {
       (sum, inv) => sum + Number(inv.total ?? inv.amount ?? inv.total_amount ?? 0),
       0,
     );
-    const paidInvoices = invoices.filter((inv) => Boolean(inv.is_paid)).length;
+    const paidInvoices = invoices.filter((inv) => inv.is_paid).length;
     const conversionRate = totalInvoices ? Math.round((paidInvoices / totalInvoices) * 100) : 0;
     const totalCustomers = new Set(invoices.map((inv) => inv.vendor_id).filter(Boolean)).size;
     return { totalInvoices, totalRevenue, paidInvoices, conversionRate, totalCustomers };
@@ -177,13 +177,13 @@ function Dashboard() {
               <li className="flex items-center justify-between border-b border-white/5 pb-2">
                 <span>Paid</span>
                 <span className="font-semibold">
-                  {invoices.filter((i) => Boolean(i.is_paid)).length}
+                  {invoices.filter((i) => i.is_paid).length}
                 </span>
               </li>
               <li className="flex items-center justify-between">
                 <span>Unpaid</span>
                 <span className="font-semibold">
-                  {invoices.filter((i) => !Boolean(i.is_paid)).length}
+                  {invoices.filter((i) => !i.is_paid).length}
                 </span>
               </li>
             </ul>
