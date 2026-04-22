@@ -27,6 +27,9 @@ const searchVoucherExists = createServerFn()
     const invoices = await context.db
       .select({
         invoice_id: t.invoices.invoice_id,
+        account_id: t.invoices.account_id,
+        vendor_id: t.invoices.vendor_id,
+        amount: t.invoices.amount,
       })
       .from(t.invoices)
       .where(
@@ -37,20 +40,42 @@ const searchVoucherExists = createServerFn()
       )
       .limit(1);
 
-    return { found: invoices.length > 0 };
+    const invoice = invoices[0];
+    if (!invoice) {
+      return { found: false as const, invoice: null };
+    }
+
+    return {
+      found: true as const,
+      invoice: {
+        invoice_id: invoice.invoice_id,
+        account_id: invoice.account_id,
+        vendor_id: invoice.vendor_id,
+        amount: Number(invoice.amount),
+      },
+    };
   });
+
+type SearchInvoice = {
+  invoice_id: number;
+  account_id: number;
+  vendor_id: number | null;
+  amount: number;
+};
 
 function SearchVoucherPage() {
   const [invoiceId, setInvoiceId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<"idle" | "found" | "not_found">("idle");
+  const [invoice, setInvoice] = useState<SearchInvoice | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
   async function handleSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setResult("idle");
+    setInvoice(null);
     setHasSearched(false);
 
     const parsedInvoiceId = Number(invoiceId);
@@ -66,7 +91,12 @@ function SearchVoucherPage() {
       const response = await searchVoucherExists({
         data: { invoiceId: parsedInvoiceId },
       });
-      setResult(response.found ? "found" : "not_found");
+      if (response.found) {
+        setResult("found");
+        setInvoice(response.invoice);
+      } else {
+        setResult("not_found");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -77,7 +107,7 @@ function SearchVoucherPage() {
   return (
     <DashboardLayout title="Search Voucher">
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Search Voucher</h1>
+
 
         <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-2">
           <input
@@ -100,7 +130,33 @@ function SearchVoucherPage() {
         {error && <p className="text-red-400">{error}</p>}
 
         {!loading && hasSearched && !error && result === "found" && (
-          <p className="text-green-400">Found</p>
+          <div className="space-y-2">
+            <p className="text-green-400">Found</p>
+            {invoice && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-sm">
+                  <thead className="text-slate-300">
+                    <tr>
+                      <th className="border-b border-white/10 px-3 py-2 text-left">Invoice ID</th>
+                      <th className="border-b border-white/10 px-3 py-2 text-left">Account ID</th>
+                      <th className="border-b border-white/10 px-3 py-2 text-left">Vendor ID</th>
+                      <th className="border-b border-white/10 px-3 py-2 text-left">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="hover:bg-white/5">
+                      <td className="border-b border-white/5 px-3 py-2">{invoice.invoice_id}</td>
+                      <td className="border-b border-white/5 px-3 py-2">{invoice.account_id}</td>
+                      <td className="border-b border-white/5 px-3 py-2">{invoice.vendor_id ?? "—"}</td>
+                      <td className="border-b border-white/5 px-3 py-2">
+                        ${invoice.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
         {!loading && hasSearched && !error && result === "not_found" && (
           <p>No found.</p>
