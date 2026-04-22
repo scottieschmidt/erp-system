@@ -20,23 +20,13 @@ const SearchVoucherSchema = v.object({
   invoiceId: v.pipe(v.number(), v.integer(), v.minValue(1)),
 });
 
-type Invoice = {
-  invoice_id: number;
-  vendor_id: number | null;
-  amount: number;
-  status: "paid" | "unpaid";
-};
-
-const searchVoucher = createServerFn()
+const searchVoucherExists = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(SearchVoucherSchema)
   .handler(async ({ data, context }) => {
     const invoices = await context.db
       .select({
         invoice_id: t.invoices.invoice_id,
-        vendor_id: t.invoices.vendor_id,
-        amount: t.invoices.amount,
-        is_paid: t.invoices.is_paid,
       })
       .from(t.invoices)
       .where(
@@ -47,24 +37,21 @@ const searchVoucher = createServerFn()
       )
       .limit(1);
 
-    return invoices.map((invoice) => ({
-      invoice_id: invoice.invoice_id,
-      vendor_id: invoice.vendor_id,
-      amount: Number(invoice.amount),
-      status: invoice.is_paid ? "paid" : "unpaid",
-    }));
+    return { found: invoices.length > 0 };
   });
 
 function SearchVoucherPage() {
   const [invoiceId, setInvoiceId] = useState("");
-  const [results, setResults] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [result, setResult] = useState<"idle" | "found" | "not_found">("idle");
+  const [hasSearched, setHasSearched] = useState(false);
 
   async function handleSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    setResults([]);
+    setResult("idle");
+    setHasSearched(false);
 
     const parsedInvoiceId = Number(invoiceId);
     if (!Number.isInteger(parsedInvoiceId) || parsedInvoiceId <= 0) {
@@ -73,12 +60,13 @@ function SearchVoucherPage() {
     }
 
     setLoading(true);
+    setHasSearched(true);
 
     try {
-      const invoices = await searchVoucher({
+      const response = await searchVoucherExists({
         data: { invoiceId: parsedInvoiceId },
       });
-      setResults(invoices);
+      setResult(response.found ? "found" : "not_found");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -111,39 +99,11 @@ function SearchVoucherPage() {
 
         {error && <p className="text-red-400">{error}</p>}
 
-        {!loading && results.length === 0 && invoiceId && !error && (
-          <p>No invoice found for that invoice ID.</p>
+        {!loading && hasSearched && !error && result === "found" && (
+          <p className="text-green-400">Found</p>
         )}
-
-        {results.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
-              <thead className="text-slate-300">
-                <tr>
-                  <th className="border-b border-white/10 px-3 py-2 text-left">Invoice ID</th>
-                  <th className="border-b border-white/10 px-3 py-2 text-left">Vendor ID</th>
-                  <th className="border-b border-white/10 px-3 py-2 text-left">Amount</th>
-                  <th className="border-b border-white/10 px-3 py-2 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((invoice) => (
-                  <tr key={invoice.invoice_id} className="hover:bg-white/5">
-                    <td className="border-b border-white/5 px-3 py-2">{invoice.invoice_id}</td>
-                    <td className="border-b border-white/5 px-3 py-2">
-                      {invoice.vendor_id ?? "—"}
-                    </td>
-                    <td className="border-b border-white/5 px-3 py-2">
-                      ${invoice.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="border-b border-white/5 px-3 py-2 capitalize">
-                      {invoice.status}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {!loading && hasSearched && !error && result === "not_found" && (
+          <p>No found.</p>
         )}
       </div>
     </DashboardLayout>
