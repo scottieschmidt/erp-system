@@ -200,6 +200,12 @@ function Dashboard() {
               </button>
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
+                onClick={() => navigate({ to: "/erp/search-voucher" })}
+              >
+                Search Invoice?
+              </button>
+              <button
+                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
                 onClick={() => navigate({ to: "/erp/vendor/new" })}
               >
                 New Vendor
