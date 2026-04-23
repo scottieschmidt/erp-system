@@ -12,11 +12,19 @@ import { useGlobalInactivitySessionTimeout } from "#/lib/session-timeout";
 export default function Header() {
   return (
     <header className="relative flex items-center justify-between bg-gray-800 p-4 text-white shadow-lg">
-      <h1 className="text-xl font-semibold">
-        <Link to="/">
-          <img src="/tanstack-word-logo-white.svg" alt="TanStack Logo" className="h-10" />
-        </Link>
-      </h1>
+      <Link to="/" className="group inline-flex items-center gap-3">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-300/30 bg-cyan-500/10 text-cyan-200 transition group-hover:border-cyan-200/60 group-hover:text-cyan-100">
+          <Icon.Building2 size={20} />
+        </span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/80">
+            ERP SYSTEM
+          </p>
+          <h1 className="text-lg font-semibold leading-tight text-white">
+            Finance Control Center
+          </h1>
+        </div>
+      </Link>
 
       <UserMenu />
     </header>
