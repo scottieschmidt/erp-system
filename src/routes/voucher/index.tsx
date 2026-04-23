@@ -9,7 +9,15 @@ import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
 import { syncInvoicePaidStatusByPaymentDate } from "#/lib/server/database/invoice-payment-status";
-import { formatDate } from "#/lib/utils";
+import {
+  BUSINESS_TIME_ZONE,
+  formatPayType,
+  formatRejectedVoucherDescription,
+  getTodayDateKey,
+  getVoucherStatus,
+  normalizeDateKey,
+  REJECTED_NOTE_PREFIX,
+} from "#/lib/voucher";
 
 type VoucherPreviewRow = {
   payment_id: number;
@@ -20,42 +28,6 @@ type VoucherPreviewRow = {
   invoice_count: number;
   description: string | null;
 };
-const BUSINESS_TIME_ZONE = "America/Chicago";
-const REJECTED_NOTE_PREFIX = "[REJECTED]";
-
-function normalizeDateKey(value: unknown): string | null {
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const rawText =
-    typeof value === "string"
-      ? value.trim()
-      : typeof value === "number"
-        ? String(value)
-        : null;
-
-  if (!rawText) {
-    return null;
-  }
-
-  const datePrefixMatch = /^(\d{4}-\d{2}-\d{2})/.exec(rawText);
-  if (datePrefixMatch?.[1]) {
-    return datePrefixMatch[1];
-  }
-
-  const parsed = new Date(rawText);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return formatDate(parsed);
-}
-
 const listVouchersPreviewFn = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .handler(async ({ context }) => {
@@ -134,10 +106,10 @@ const rejectPendingVoucherFn = createServerFn({ method: "POST" })
 
       await tx.delete(t.payment_invoice).where(eq(t.payment_invoice.payment_id, data.paymentId));
       const nowText = new Date().toISOString();
-      const previousDescription = pendingPayment[0]?.description?.trim() ?? "";
-      const rejectionDescription = previousDescription
-        ? `${REJECTED_NOTE_PREFIX} Payment was rejected at ${nowText}. Previous note: ${previousDescription}`
-        : `${REJECTED_NOTE_PREFIX} Payment was rejected at ${nowText}.`;
+      const rejectionDescription = formatRejectedVoucherDescription(
+        pendingPayment[0]?.description,
+        nowText,
+      );
 
       await tx
         .update(t.payment)
@@ -172,7 +144,7 @@ function VoucherPreviewPage() {
       await router.invalidate();
     },
   });
-  const todayKey = formatDate(new Date());
+  const todayKey = getTodayDateKey();
 
   return (
     <DashboardLayout title="Voucher Preview">
@@ -225,15 +197,12 @@ function VoucherPreviewPage() {
                 </tr>
               ) : (
                 vouchers.map((voucher) => {
-                  const payTypeText = String(voucher.pay_type ?? "")
-                    .split("_")
-                    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                    .join(" ");
-                  const paymentDateKey = normalizeDateKey(voucher.payment_date);
-                  const isRejected = String(voucher.description ?? "")
-                    .trim()
-                    .startsWith(REJECTED_NOTE_PREFIX);
-                  const isPending = Boolean(paymentDateKey && paymentDateKey > todayKey);
+                  const payTypeText = formatPayType(voucher.pay_type);
+                  const voucherStatus = getVoucherStatus({
+                    paymentDate: voucher.payment_date,
+                    description: voucher.description,
+                    todayKey,
+                  });
 
                   return (
                     <tr key={voucher.payment_id} className="hover:bg-white/5">
@@ -246,11 +215,11 @@ function VoucherPreviewPage() {
                       <td className="border-b border-white/5 px-3 py-2">{payTypeText || "—"}</td>
                       <td className="border-b border-white/5 px-3 py-2">{voucher.invoice_count}</td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        {isRejected ? (
+                        {voucherStatus === "rejected" ? (
                           <span className="rounded bg-rose-700 px-2 py-1 text-xs font-semibold text-rose-50">
                             Rejected
                           </span>
-                        ) : isPending ? (
+                        ) : voucherStatus === "pending" ? (
                           <span className="rounded bg-amber-700 px-2 py-1 text-xs font-semibold text-amber-50">
                             Pending
                           </span>
@@ -261,7 +230,7 @@ function VoucherPreviewPage() {
                         )}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        {isPending && !isRejected ? (
+                        {voucherStatus === "pending" ? (
                           <button
                             type="button"
                             onClick={() => {

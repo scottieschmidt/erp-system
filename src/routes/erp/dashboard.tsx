@@ -13,8 +13,7 @@ import { t } from "#/lib/server/database";
 import { generateFinancialReport } from "#/lib/server/database/financial-reports";
 import { syncInvoicePaidStatusByPaymentDate } from "#/lib/server/database/invoice-payment-status";
 import { formatDate } from "#/lib/utils";
-
-const REJECTED_NOTE_PREFIX = "[REJECTED]";
+import { formatPayType, getTodayDateKey, getVoucherStatus, normalizeDateKey } from "#/lib/voucher";
 const VOUCHERS_PER_PAGE = 5;
 
 const getDashboardData = createServerFn()
@@ -77,39 +76,6 @@ type Invoice = Record<string, any>;
 type Voucher = Record<string, any>;
 type VoucherInvoice = Record<string, any>;
 
-function normalizeDateKey(value: unknown): string | null {
-  if (value instanceof Date) {
-    return formatDate(value);
-  }
-
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const rawText =
-    typeof value === "string"
-      ? value.trim()
-      : typeof value === "number"
-        ? String(value)
-        : null;
-
-  if (!rawText) {
-    return null;
-  }
-
-  const datePrefixMatch = /^(\d{4}-\d{2}-\d{2})/.exec(rawText);
-  if (datePrefixMatch?.[1]) {
-    return datePrefixMatch[1];
-  }
-
-  const parsed = new Date(rawText);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return formatDate(parsed);
-}
-
 function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -151,12 +117,7 @@ function Dashboard() {
       }
     });
 
-    const today = new Date();
-    const todayKey = [
-      today.getFullYear(),
-      String(today.getMonth() + 1).padStart(2, "0"),
-      String(today.getDate()).padStart(2, "0"),
-    ].join("-");
+    const todayKey = getTodayDateKey();
 
     const pendingIds = new Set<number>();
     voucherInvoices.forEach((row) => {
@@ -222,7 +183,7 @@ function Dashboard() {
   }, [currentVoucherPage, vouchers]);
   const shownVoucherStart = vouchers.length === 0 ? 0 : currentVoucherPage * VOUCHERS_PER_PAGE + 1;
   const shownVoucherEnd = Math.min((currentVoucherPage + 1) * VOUCHERS_PER_PAGE, vouchers.length);
-  const todayKey = formatDate(new Date());
+  const todayKey = getTodayDateKey();
   const expensePoints = useMemo(() => {
     const dailyTotals = new Map<string, number>();
     const currentMonthKey = formatDate(new Date()).slice(0, 7);
@@ -454,15 +415,12 @@ function Dashboard() {
                   displayedVouchers.map((voucher, idx) => {
                     const paymentId = Number(voucher.payment_id);
                     const invoiceCount = invoiceCountByPaymentId.get(paymentId) ?? 0;
-                    const paymentDateKey = normalizeDateKey(voucher.payment_date);
-                    const isRejected = String(voucher.description ?? "")
-                      .trim()
-                      .startsWith(REJECTED_NOTE_PREFIX);
-                    const isPending = Boolean(paymentDateKey && paymentDateKey > todayKey);
-                    const payTypeText = String(voucher.pay_type ?? "")
-                      .split("_")
-                      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-                      .join(" ");
+                    const voucherStatus = getVoucherStatus({
+                      paymentDate: voucher.payment_date,
+                      description: voucher.description,
+                      todayKey,
+                    });
+                    const payTypeText = formatPayType(voucher.pay_type);
 
                     return (
                     <tr key={paymentId > 0 ? paymentId : idx} className="hover:bg-white/5">
@@ -479,11 +437,11 @@ function Dashboard() {
                         {invoiceCount}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        {isRejected ? (
+                        {voucherStatus === "rejected" ? (
                           <span className="inline-flex rounded-full border border-red-500/40 bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-200">
                             Rejected
                           </span>
-                        ) : isPending ? (
+                        ) : voucherStatus === "pending" ? (
                           <span className="inline-flex rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200">
                             Pending
                           </span>
