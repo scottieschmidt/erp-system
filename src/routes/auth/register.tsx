@@ -3,6 +3,7 @@ import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import * as v from "valibot";
 
@@ -29,12 +30,28 @@ const RegisterSchema = v.object({
   password: v.pipe(v.string(), v.nonEmpty()),
   role_id: v.pipe(IntStrSchema, v.integer()),
   dept_id: v.pipe(IntStrSchema, v.integer()),
+  admin_secret_code: v.string(),
 });
 
 const registerFn = createServerFn()
   .middleware([DatabaseProvider, SupabaseProvider])
   .inputValidator(RegisterSchema)
   .handler(async ({ data, context }) => {
+    if (data.role_id === 1) {
+      const configuredAdminSecret =
+        env?.ADMIN_CREATE_SECRET ?? process.env.ADMIN_CREATE_SECRET ?? "";
+
+      if (!configuredAdminSecret) {
+        throw new Error(
+          "Admin account creation is not configured. Set ADMIN_CREATE_SECRET on the server.",
+        );
+      }
+
+      if (data.admin_secret_code.trim() !== configuredAdminSecret.trim()) {
+        throw new Error("Invalid admin secret code.");
+      }
+    }
+
     const { data: authData, error } = await context.supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -90,6 +107,7 @@ function RegisterPage() {
       password: "",
       role_id: "",
       dept_id: "",
+      admin_secret_code: "",
     },
     validators: {
       onMount: RegisterSchema,
@@ -215,6 +233,32 @@ function RegisterPage() {
             )}
           />
         </div>
+
+        <form.Subscribe
+          selector={(state) => state.values.role_id === "1"}
+          children={(isAdminRole) =>
+            isAdminRole ? (
+              <form.Field
+                name="admin_secret_code"
+                children={(field) => (
+                  <Field className={styles.field}>
+                    <Label className={styles.label}>Admin Secret Code</Label>
+                    <Input
+                      type="password"
+                      name={field.name}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      className={styles.input}
+                      placeholder="Required for Admin role"
+                    />
+                    <FieldError meta={field.state.meta} className={styles.error} />
+                  </Field>
+                )}
+              />
+            ) : null
+          }
+        />
 
         {mutation.error && <p className={styles.error}>{mutation.error.message}</p>}
 

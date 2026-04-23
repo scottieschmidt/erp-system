@@ -14,6 +14,10 @@ import { MustAuthenticate, redirectIfSignedOut } from "../../lib/auth";
 import { DatabaseProvider } from "../../lib/provider";
 import { t } from "../../lib/server/database";
 import { getDatabaseErrorReason } from "../../lib/server/database/invoices";
+import {
+  SESSION_TIMEOUT_RULES,
+  useSessionTimeoutTracker,
+} from "../../lib/session-timeout";
 
 type Account = {
   account_id: number;
@@ -62,24 +66,24 @@ const getVoucherFormOptions = createServerFn()
     };
   });
 
-const saveVoucherPaymentSchema = v.object({
-  invoiceIds: v.array(v.pipe(v.number(), v.integer(), v.minValue(1))),
-  voucherNumber: v.string(),
-  accountId: v.pipe(v.number(), v.integer(), v.minValue(1)),
-  paymentDate: v.pipe(v.string(), v.minLength(1)),
-  payType: v.pipe(v.string(), v.minLength(1)),
-  description: v.optional(v.string(), ""),
-});
-
 const saveVoucherPayment = createServerFn({ method: "POST" })
   .middleware([DatabaseProvider, MustAuthenticate])
-  .inputValidator(saveVoucherPaymentSchema)
+  .inputValidator(
+    v.object({
+      invoiceIds: v.array(v.number()),
+      voucherNumber: v.string(),
+      accountId: v.number(),
+      paymentDate: v.string(),
+      payType: v.string(),
+      description: v.optional(v.string(), ""),
+    }),
+  )
   .handler(async ({ context, data }) => {
-    const invoiceIds = data.invoiceIds;
-    const voucherNumber = data.voucherNumber;
-    const accountId = data.accountId;
-    const paymentDate = data.paymentDate;
-    const payTypeRaw = data.payType;
+    const invoiceIds = data.invoiceIds ?? [];
+    const voucherNumber = data.voucherNumber ?? "";
+    const accountId = data.accountId ?? null;
+    const paymentDate = data.paymentDate ?? "";
+    const payTypeRaw = data.payType ?? "";
     const description = data.description ?? "";
     const payType = payTypeRaw.toLowerCase().replaceAll(" ", "_");
     const allowedPayTypes = new Set(PAY_TYPES.map((type) => type.value));
@@ -88,7 +92,7 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
       throw new Error("No invoices selected.");
     }
 
-    if (!paymentDate || !payType) {
+    if (!accountId || !paymentDate || !payType) {
       throw new Error("Missing required payment data.");
     }
 
@@ -194,7 +198,7 @@ const saveVoucherPayment = createServerFn({ method: "POST" })
 
 
 
-export const Route = createFileRoute("/erp/new-voucher")({
+export const Route = createFileRoute("/voucher/new")({
   component: NewVoucherPage,
   beforeLoad: async ({ context }) => {
     await redirectIfSignedOut(context);
@@ -214,6 +218,9 @@ type VoucherFormData = {
 function NewVoucherPage() {
   const { invoices, accounts } = Route.useLoaderData();
   const router = useRouter();
+  const { remainingLabel } = useSessionTimeoutTracker({
+    rule: SESSION_TIMEOUT_RULES.createVoucher,
+  });
 
   const [formData, setFormData] = useState<VoucherFormData>({
     selectedInvoices: [],
@@ -370,6 +377,9 @@ function NewVoucherPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Create Payment Voucher</h1>
+          <span className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+            Session timeout: {remainingLabel}
+          </span>
         </div>
 
         {successMessage && (

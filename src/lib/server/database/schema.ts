@@ -60,6 +60,14 @@ export const invoices = pgTable("invoices", {
   is_paid: boolean().default(false).notNull(),
 });
 
+export const invoice_items = pgTable("invoice_items", {
+  invoice_id: bigint({ mode: "number" }).notNull(),
+  description: text().notNull(),
+  quantity: numeric({ precision: 12, scale: 2 }).notNull(),
+  price: numeric({ precision: 12, scale: 2 }).notNull(),
+  tax_rate: numeric({ precision: 5, scale: 2 }).notNull(),
+});
+
 export const gl_accounts = pgTable("gl_accounts", {
   account_id: bigint({ mode: "number" }).primaryKey().generatedByDefaultAsIdentity(),
   account_name: varchar({ length: 100 }).notNull(),
@@ -91,3 +99,7 @@ export const auth_sessions = AuthSchema.table("sessions", {
   ip: inet(),
 });
 
+export const auth_users = AuthSchema.table("users", {
+  id: uuid().primaryKey(),
+  last_sign_in_at: timestamp({ withTimezone: true, mode: "string" }),
+});

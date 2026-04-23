@@ -1,12 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { desc, eq } from "drizzle-orm";
 
+import { ExpensesChart } from "#/components/charts/expenses-chart";
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
-import { DatabaseProvider } from "#/lib/provider";
+import { DatabaseProvider, SupabaseProvider } from "#/lib/provider";
+import { openFinancialReportPdf } from "#/lib/report-pdf";
 import { t } from "#/lib/server/database";
+import { generateFinancialReport } from "#/lib/server/database/financial-reports";
 
 const getDashboardData = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
@@ -41,6 +45,18 @@ const getDashboardData = createServerFn()
     return { invoices, vouchers, voucherInvoices };
   });
 
+const logoutFn = createServerFn()
+  .middleware([SupabaseProvider])
+  .handler(async ({ context }) => {
+    await context.supabase.auth.signOut();
+  });
+
+const exportFinancialReportFn = createServerFn()
+  .middleware([DatabaseProvider, MustAuthenticate])
+  .handler(async ({ context }) => {
+    return await generateFinancialReport(context.db, context.auth.profile.user_id);
+  });
+
 export const Route = createFileRoute("/erp/dashboard")({
   component: Dashboard,
   beforeLoad: async ({ context }) => {
@@ -65,6 +81,19 @@ function Dashboard() {
   const voucherInvoices = loaderData.voucherInvoices;
   const [showAllVouchers, setShowAllVouchers] = useState(false);
   const loading = false;
+  const logoutMut = useMutation({
+    mutationFn: logoutFn,
+    onSuccess() {
+      sessionStorage.clear();
+      void navigate({ to: "/", replace: true });
+    },
+  });
+  const exportReportMut = useMutation({
+    mutationFn: exportFinancialReportFn,
+    onSuccess(report) {
+      openFinancialReportPdf(report, "Financial Report");
+    },
+  });
 
   const stats = useMemo(() => {
     const totalInvoices = invoices.length;
@@ -72,38 +101,14 @@ function Dashboard() {
       (sum, inv) => sum + Number(inv.total ?? inv.amount ?? inv.total_amount ?? 0),
       0,
     );
-    const paidInvoices = invoices.filter((inv) => inv.is_paid).length;
+    const paidInvoices = invoices.filter((inv) => Boolean(inv.is_paid)).length;
     const conversionRate = totalInvoices ? Math.round((paidInvoices / totalInvoices) * 100) : 0;
     const totalCustomers = new Set(invoices.map((inv) => inv.vendor_id).filter(Boolean)).size;
     return { totalInvoices, totalRevenue, paidInvoices, conversionRate, totalCustomers };
   }, [invoices]);
 
   function handleLogout() {
-    sessionStorage.clear();
-    void navigate({ to: "/auth/login" });
-  }
-
-  function exportData() {
-    const report = {
-      export_date: new Date().toISOString(),
-      summary: {
-        total_invoices: invoices.length,
-        total_customers: stats.totalCustomers,
-        total_revenue: stats.totalRevenue,
-        paid_invoices: stats.paidInvoices,
-        conversion_rate: `${stats.conversionRate}%`,
-      },
-      invoices,
-      vouchers,
-    };
-
-    const dataStr = JSON.stringify(report, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `financial-report-${new Date().toISOString().split("T")[0]}.json`;
-    link.click();
+    logoutMut.mutate({});
   }
 
   const invoiceCountByPaymentId = useMemo(() => {
@@ -117,6 +122,39 @@ function Dashboard() {
 
   const recentVouchers = vouchers.slice(0, 5);
   const displayedVouchers = showAllVouchers ? vouchers : recentVouchers;
+  const expensePoints = useMemo(() => {
+    const dailyTotals = new Map<string, number>();
+
+    vouchers.forEach((voucher) => {
+      const rawDate = voucher.payment_date;
+      if (!rawDate) return;
+
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+
+      const key = date.toISOString().slice(0, 10);
+      const amount = Number(voucher.total_amount ?? 0);
+      dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + amount);
+    });
+
+    const points: Array<{ date: string; total: number }> = [];
+    const today = new Date();
+
+    // Keep a consistent long range in the chart: last 30 days.
+    for (let offset = 29; offset >= 0; offset -= 1) {
+      const date = new Date(today);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - offset);
+      const key = date.toISOString().slice(0, 10);
+
+      points.push({
+        date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        total: dailyTotals.get(key) ?? 0,
+      });
+    }
+
+    return points;
+  }, [vouchers]);
 
   return (
     <DashboardLayout title="Finance Control Center">
@@ -140,7 +178,7 @@ function Dashboard() {
             </button>
             <button
               className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-white/25"
-              onClick={() => navigate({ to: "/erp/vendor/new" })}
+              onClick={() => navigate({ to: "/vendor/new" })}
             >
               + New Vendor
             </button>
@@ -169,6 +207,8 @@ function Dashboard() {
           <StatCard label="Customers" value={stats.totalCustomers.toString()} />
           <StatCard label="Conversion" value={`${stats.conversionRate}%`} />
         </section>
+
+        <ExpensesChart points={expensePoints} />
 
         <section className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
@@ -200,13 +240,7 @@ function Dashboard() {
               </button>
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                onClick={() => navigate({ to: "/erp/search-voucher" })}
-              >
-                Search Invoice?
-              </button>
-              <button
-                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                onClick={() => navigate({ to: "/erp/vendor/new" })}
+                onClick={() => navigate({ to: "/vendor/new" })}
               >
                 New Vendor
               </button>
@@ -218,13 +252,13 @@ function Dashboard() {
               </button>
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                onClick={() => navigate({ to: "/erp/new-voucher" })}
+                onClick={() => navigate({ to: "/voucher/new" })}
               >
                 New Voucher
               </button>
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                onClick={exportData}
+                onClick={() => exportReportMut.mutate({})}
               >
                 Export Data
               </button>
@@ -316,7 +350,10 @@ function Dashboard() {
                         {invoiceCount}
                       </td>
                       <td className="border-b border-white/5 px-3 py-2">
-                        ${Number(voucher.total_amount ?? 0).toLocaleString()}
+                        ${Number(voucher.total_amount ?? 0).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     </tr>
                   );

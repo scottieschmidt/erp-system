@@ -6,10 +6,7 @@ import { z } from "zod";
 import { supabaseBrowser } from "#/lib/supabaseBrowser";
 import { DatabaseProvider } from "#/lib/provider";
 import { MustAuthenticate } from "#/lib/auth";
-import {
-  getDatabaseErrorReason,
-  insertInvoiceWithInvoiceIdFallback,
-} from "#/lib/server/database/invoices";
+import { createInvoiceWithItemsForUser } from "#/lib/server/database/invoice-service";
 
 export const Route = createFileRoute("/erp/invoice")({
   component: InvoicePage,
@@ -30,31 +27,34 @@ const InvoiceCreateSchema = z.object({
   invoice_date: z.string().min(1),
   amount: z.number(),
   account_id: z.number().int().optional(),
+  line_items: z
+    .array(
+      z.object({
+        description: z.string().trim().min(1),
+        quantity: z.number().positive(),
+        price: z.number().min(0),
+        tax_rate: z.number().min(0).max(100),
+      }),
+    )
+    .min(1),
 });
 
 const createInvoice = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(InvoiceCreateSchema)
   .handler(async ({ data, context }) => {
-    let inserted;
-    try {
-      inserted = await insertInvoiceWithInvoiceIdFallback(context.db, {
-        user_id: context.auth.profile.user_id as any,
+    return await createInvoiceWithItemsForUser(
+      context.db,
+      context.auth.profile.user_id,
+      {
         account_id: data.account_id ?? 1,
         vendor_id: data.vendor_id,
         invoice_date: data.invoice_date,
-        amount: data.amount as any,
-        created_date: today(),
-      });
-    } catch (error) {
-      const reason = getDatabaseErrorReason(error);
-      throw new Error(
-        `Failed to create invoice (user_id=${context.auth.profile.user_id}, account_id=${data.account_id ?? 1}, vendor_id=${data.vendor_id}, amount=${data.amount}, invoice_date=${data.invoice_date}). ${reason}`,
-      );
-    }
-
-    if (!inserted) throw new Error("Failed to create invoice");
-    return { invoice_id: inserted.invoice_id };
+        amount: data.amount.toFixed(2),
+      },
+      data.line_items,
+      today(),
+    );
   });
 
 function InvoicePage() {
@@ -171,6 +171,12 @@ function InvoicePage() {
           invoice_date: invoiceDate,
           amount: totals.total,
           account_id: 1,
+          line_items: lineItems.map((item) => ({
+            description: item.description.trim(),
+            quantity: item.quantity,
+            price: item.price,
+            tax_rate: item.tax_rate,
+          })),
         },
       });
       localStorage.removeItem("currentLineItems");

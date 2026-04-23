@@ -86,6 +86,22 @@ export async function redirectIfSignedIn(context: RouterContext) {
   });
 
   if (auth.identity) {
-    throw redirect({ to: "/dashboard" });
+    throw redirect({ to: "/erp/dashboard" });
+  }
+}
+
+export async function redirectIfNotAdmin(context: RouterContext) {
+  const auth = await context.queryClient.fetchQuery({
+    queryKey: AuthInfoQueryKey,
+    queryFn: getAuthInfoFn,
+    staleTime: Infinity,
+  });
+
+  if (!auth.identity) {
+    throw redirect({ to: "/auth/login" });
+  }
+
+  if (auth.profile?.role_id !== 1) {
+    throw redirect({ to: "/erp/dashboard" });
   }
 }

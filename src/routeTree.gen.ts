@@ -12,21 +12,22 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VoucherIndexRouteImport } from './routes/voucher/index'
+import { Route as VendorIndexRouteImport } from './routes/vendor/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as InvoiceIndexRouteImport } from './routes/invoice/index'
+import { Route as VoucherNewRouteImport } from './routes/voucher/new'
+import { Route as VendorNewRouteImport } from './routes/vendor/new'
 import { Route as InvoiceNewRouteImport } from './routes/invoice/new'
 import { Route as InvoiceIdRouteImport } from './routes/invoice/$id'
 import { Route as ErpUsersRouteImport } from './routes/erp/users'
 import { Route as ErpSearchVoucherRouteImport } from './routes/erp/search-voucher'
-import { Route as ErpNewVoucherRouteImport } from './routes/erp/new-voucher'
 import { Route as ErpNewUserRouteImport } from './routes/erp/new-user'
 import { Route as ErpInvoiceRouteImport } from './routes/erp/invoice'
 import { Route as ErpDashboardRouteImport } from './routes/erp/dashboard'
 import { Route as ErpAccountsRouteImport } from './routes/erp/accounts'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as ErpVendorIndexRouteImport } from './routes/erp/vendor/index'
-import { Route as ErpVendorNewRouteImport } from './routes/erp/vendor/new'
 import { Route as AuthPasswordResetRouteImport } from './routes/auth/password/reset'
 import { Route as AuthPasswordForgotRouteImport } from './routes/auth/password/forgot'
 
@@ -45,6 +46,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VoucherIndexRoute = VoucherIndexRouteImport.update({
+  id: '/voucher/',
+  path: '/voucher/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorIndexRoute = VendorIndexRouteImport.update({
+  id: '/vendor/',
+  path: '/vendor/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
@@ -53,6 +64,16 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const InvoiceIndexRoute = InvoiceIndexRouteImport.update({
   id: '/invoice/',
   path: '/invoice/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VoucherNewRoute = VoucherNewRouteImport.update({
+  id: '/voucher/new',
+  path: '/voucher/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorNewRoute = VendorNewRouteImport.update({
+  id: '/vendor/new',
+  path: '/vendor/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InvoiceNewRoute = InvoiceNewRouteImport.update({
@@ -73,11 +94,6 @@ const ErpUsersRoute = ErpUsersRouteImport.update({
 const ErpSearchVoucherRoute = ErpSearchVoucherRouteImport.update({
   id: '/erp/search-voucher',
   path: '/erp/search-voucher',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErpNewVoucherRoute = ErpNewVoucherRouteImport.update({
-  id: '/erp/new-voucher',
-  path: '/erp/new-voucher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ErpNewUserRoute = ErpNewUserRouteImport.update({
@@ -110,16 +126,6 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ErpVendorIndexRoute = ErpVendorIndexRouteImport.update({
-  id: '/erp/vendor/',
-  path: '/erp/vendor/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErpVendorNewRoute = ErpVendorNewRouteImport.update({
-  id: '/erp/vendor/new',
-  path: '/erp/vendor/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthPasswordResetRoute = AuthPasswordResetRouteImport.update({
   id: '/auth/password/reset',
   path: '/auth/password/reset',
@@ -141,17 +147,18 @@ export interface FileRoutesByFullPath {
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
-  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/erp/search-voucher': typeof ErpSearchVoucherRoute
   '/erp/users': typeof ErpUsersRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
+  '/vendor/new': typeof VendorNewRoute
+  '/voucher/new': typeof VoucherNewRoute
   '/invoice/': typeof InvoiceIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/vendor/': typeof VendorIndexRoute
+  '/voucher/': typeof VoucherIndexRoute
   '/auth/password/forgot': typeof AuthPasswordForgotRoute
   '/auth/password/reset': typeof AuthPasswordResetRoute
-  '/erp/vendor/new': typeof ErpVendorNewRoute
-  '/erp/vendor/': typeof ErpVendorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -163,17 +170,18 @@ export interface FileRoutesByTo {
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
-  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/erp/search-voucher': typeof ErpSearchVoucherRoute
   '/erp/users': typeof ErpUsersRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
+  '/vendor/new': typeof VendorNewRoute
+  '/voucher/new': typeof VoucherNewRoute
   '/invoice': typeof InvoiceIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/vendor': typeof VendorIndexRoute
+  '/voucher': typeof VoucherIndexRoute
   '/auth/password/forgot': typeof AuthPasswordForgotRoute
   '/auth/password/reset': typeof AuthPasswordResetRoute
-  '/erp/vendor/new': typeof ErpVendorNewRoute
-  '/erp/vendor': typeof ErpVendorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -186,17 +194,18 @@ export interface FileRoutesById {
   '/erp/dashboard': typeof ErpDashboardRoute
   '/erp/invoice': typeof ErpInvoiceRoute
   '/erp/new-user': typeof ErpNewUserRoute
-  '/erp/new-voucher': typeof ErpNewVoucherRoute
   '/erp/search-voucher': typeof ErpSearchVoucherRoute
   '/erp/users': typeof ErpUsersRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/invoice/new': typeof InvoiceNewRoute
+  '/vendor/new': typeof VendorNewRoute
+  '/voucher/new': typeof VoucherNewRoute
   '/invoice/': typeof InvoiceIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/vendor/': typeof VendorIndexRoute
+  '/voucher/': typeof VoucherIndexRoute
   '/auth/password/forgot': typeof AuthPasswordForgotRoute
   '/auth/password/reset': typeof AuthPasswordResetRoute
-  '/erp/vendor/new': typeof ErpVendorNewRoute
-  '/erp/vendor/': typeof ErpVendorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -210,17 +219,18 @@ export interface FileRouteTypes {
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
-    | '/erp/new-voucher'
     | '/erp/search-voucher'
     | '/erp/users'
     | '/invoice/$id'
     | '/invoice/new'
+    | '/vendor/new'
+    | '/voucher/new'
     | '/invoice/'
     | '/settings/'
+    | '/vendor/'
+    | '/voucher/'
     | '/auth/password/forgot'
     | '/auth/password/reset'
-    | '/erp/vendor/new'
-    | '/erp/vendor/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,17 +242,18 @@ export interface FileRouteTypes {
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
-    | '/erp/new-voucher'
     | '/erp/search-voucher'
     | '/erp/users'
     | '/invoice/$id'
     | '/invoice/new'
+    | '/vendor/new'
+    | '/voucher/new'
     | '/invoice'
     | '/settings'
+    | '/vendor'
+    | '/voucher'
     | '/auth/password/forgot'
     | '/auth/password/reset'
-    | '/erp/vendor/new'
-    | '/erp/vendor'
   id:
     | '__root__'
     | '/'
@@ -254,17 +265,18 @@ export interface FileRouteTypes {
     | '/erp/dashboard'
     | '/erp/invoice'
     | '/erp/new-user'
-    | '/erp/new-voucher'
     | '/erp/search-voucher'
     | '/erp/users'
     | '/invoice/$id'
     | '/invoice/new'
+    | '/vendor/new'
+    | '/voucher/new'
     | '/invoice/'
     | '/settings/'
+    | '/vendor/'
+    | '/voucher/'
     | '/auth/password/forgot'
     | '/auth/password/reset'
-    | '/erp/vendor/new'
-    | '/erp/vendor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -277,17 +289,18 @@ export interface RootRouteChildren {
   ErpDashboardRoute: typeof ErpDashboardRoute
   ErpInvoiceRoute: typeof ErpInvoiceRoute
   ErpNewUserRoute: typeof ErpNewUserRoute
-  ErpNewVoucherRoute: typeof ErpNewVoucherRoute
   ErpSearchVoucherRoute: typeof ErpSearchVoucherRoute
   ErpUsersRoute: typeof ErpUsersRoute
   InvoiceIdRoute: typeof InvoiceIdRoute
   InvoiceNewRoute: typeof InvoiceNewRoute
+  VendorNewRoute: typeof VendorNewRoute
+  VoucherNewRoute: typeof VoucherNewRoute
   InvoiceIndexRoute: typeof InvoiceIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  VendorIndexRoute: typeof VendorIndexRoute
+  VoucherIndexRoute: typeof VoucherIndexRoute
   AuthPasswordForgotRoute: typeof AuthPasswordForgotRoute
   AuthPasswordResetRoute: typeof AuthPasswordResetRoute
-  ErpVendorNewRoute: typeof ErpVendorNewRoute
-  ErpVendorIndexRoute: typeof ErpVendorIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -313,6 +326,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/voucher/': {
+      id: '/voucher/'
+      path: '/voucher'
+      fullPath: '/voucher/'
+      preLoaderRoute: typeof VoucherIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendor/': {
+      id: '/vendor/'
+      path: '/vendor'
+      fullPath: '/vendor/'
+      preLoaderRoute: typeof VendorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/settings'
@@ -325,6 +352,20 @@ declare module '@tanstack/react-router' {
       path: '/invoice'
       fullPath: '/invoice/'
       preLoaderRoute: typeof InvoiceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/voucher/new': {
+      id: '/voucher/new'
+      path: '/voucher/new'
+      fullPath: '/voucher/new'
+      preLoaderRoute: typeof VoucherNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendor/new': {
+      id: '/vendor/new'
+      path: '/vendor/new'
+      fullPath: '/vendor/new'
+      preLoaderRoute: typeof VendorNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invoice/new': {
@@ -353,13 +394,6 @@ declare module '@tanstack/react-router' {
       path: '/erp/search-voucher'
       fullPath: '/erp/search-voucher'
       preLoaderRoute: typeof ErpSearchVoucherRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/erp/new-voucher': {
-      id: '/erp/new-voucher'
-      path: '/erp/new-voucher'
-      fullPath: '/erp/new-voucher'
-      preLoaderRoute: typeof ErpNewVoucherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/erp/new-user': {
@@ -404,20 +438,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/erp/vendor/': {
-      id: '/erp/vendor/'
-      path: '/erp/vendor'
-      fullPath: '/erp/vendor/'
-      preLoaderRoute: typeof ErpVendorIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/erp/vendor/new': {
-      id: '/erp/vendor/new'
-      path: '/erp/vendor/new'
-      fullPath: '/erp/vendor/new'
-      preLoaderRoute: typeof ErpVendorNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth/password/reset': {
       id: '/auth/password/reset'
       path: '/auth/password/reset'
@@ -445,17 +465,18 @@ const rootRouteChildren: RootRouteChildren = {
   ErpDashboardRoute: ErpDashboardRoute,
   ErpInvoiceRoute: ErpInvoiceRoute,
   ErpNewUserRoute: ErpNewUserRoute,
-  ErpNewVoucherRoute: ErpNewVoucherRoute,
   ErpSearchVoucherRoute: ErpSearchVoucherRoute,
   ErpUsersRoute: ErpUsersRoute,
   InvoiceIdRoute: InvoiceIdRoute,
   InvoiceNewRoute: InvoiceNewRoute,
+  VendorNewRoute: VendorNewRoute,
+  VoucherNewRoute: VoucherNewRoute,
   InvoiceIndexRoute: InvoiceIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  VendorIndexRoute: VendorIndexRoute,
+  VoucherIndexRoute: VoucherIndexRoute,
   AuthPasswordForgotRoute: AuthPasswordForgotRoute,
   AuthPasswordResetRoute: AuthPasswordResetRoute,
-  ErpVendorNewRoute: ErpVendorNewRoute,
-  ErpVendorIndexRoute: ErpVendorIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
