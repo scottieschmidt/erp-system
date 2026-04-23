@@ -240,6 +240,12 @@ function Dashboard() {
               </button>
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
+                onClick={() => navigate({ to: "/erp/search-voucher" })}
+              >
+                Search Voucher
+              </button>
+              <button
+                className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
                 onClick={() => navigate({ to: "/vendor/new" })}
               >
                 New Vendor
