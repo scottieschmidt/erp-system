@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { desc, eq } from "drizzle-orm";
 
-import { ExpensesChart } from "#/components/charts/expenses-chart";
+import { ExpensesChart, type BarChartPoint } from "#/components/charts/expenses-chart";
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut, useAuthInfoQuery } from "#/lib/auth";
 import { DatabaseProvider, SupabaseProvider } from "#/lib/provider";
@@ -211,27 +211,29 @@ function Dashboard() {
   const displayedVouchers = vouchers.slice(0, 5);
   const expensePoints = useMemo(() => {
     const dailyTotals = new Map<string, number>();
+    const currentMonthKey = formatDate(new Date()).slice(0, 7);
 
     vouchers.forEach((voucher) => {
       const key = normalizeDateKey(voucher.payment_date);
       if (!key) return;
+      if (!key.startsWith(currentMonthKey)) return;
       const amount = Number(voucher.total_amount ?? 0);
       dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + amount);
     });
 
-    const points: Array<{ date: string; total: number }> = [];
+    const points: BarChartPoint[] = [];
     const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Keep a consistent long range in the chart: last 30 days.
-    for (let offset = 29; offset >= 0; offset -= 1) {
-      const date = new Date(today);
-      date.setHours(0, 0, 0, 0);
-      date.setDate(date.getDate() - offset);
-      const key = date.toISOString().slice(0, 10);
+    // Current month only: from day 1 through today.
+    for (let date = new Date(startOfMonth); date <= today; date.setDate(date.getDate() + 1)) {
+      const current = new Date(date);
+      current.setHours(0, 0, 0, 0);
+      const key = formatDate(current);
 
       points.push({
-        date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        total: dailyTotals.get(key) ?? 0,
+        label: current.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        value: dailyTotals.get(key) ?? 0,
       });
     }
 
@@ -290,7 +292,10 @@ function Dashboard() {
           <StatCard label="Conversion" value={`${stats.conversionRate}%`} />
         </section>
 
-        <ExpensesChart points={expensePoints} />
+        <ExpensesChart
+          points={expensePoints}
+          description="Current month daily totals (through today)."
+        />
 
         <section className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">

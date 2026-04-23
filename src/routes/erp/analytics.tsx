@@ -1,21 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
-import { ExpensesChart } from "#/components/charts/expenses-chart";
+import { ExpensesChart, type BarChartPoint } from "#/components/charts/expenses-chart";
 
-type ChartPoint = {
-  label: string;
-  total: number;
-};
+const BUSINESS_TIME_ZONE = "America/Chicago";
+const REJECTED_NOTE_PREFIX = "[REJECTED]";
 
 type AnalyticsData = {
-  vendorPoints: ChartPoint[];
-  accountPoints: ChartPoint[];
+  vendorPoints: BarChartPoint[];
+  accountPoints: BarChartPoint[];
   totalSpend: number;
   voucherCount: number;
 };
@@ -31,7 +29,13 @@ const getAnalyticsData = createServerFn()
         account_id: t.payment.account_id,
       })
       .from(t.payment)
-      .where(eq(t.payment.user_id, context.auth.profile.user_id))
+      .where(
+        and(
+          eq(t.payment.user_id, context.auth.profile.user_id),
+          sql`${t.payment.payment_date} <= (now() at time zone ${BUSINESS_TIME_ZONE})::date`,
+          sql`coalesce(${t.payment.description}, '') not like ${`${REJECTED_NOTE_PREFIX}%`}`,
+        ),
+      )
       .orderBy(desc(t.payment.payment_date));
 
     const paymentInvoices = await context.db
@@ -42,7 +46,13 @@ const getAnalyticsData = createServerFn()
       })
       .from(t.payment_invoice)
       .innerJoin(t.payment, eq(t.payment_invoice.payment_id, t.payment.payment_id))
-      .where(eq(t.payment.user_id, context.auth.profile.user_id));
+      .where(
+        and(
+          eq(t.payment.user_id, context.auth.profile.user_id),
+          sql`${t.payment.payment_date} <= (now() at time zone ${BUSINESS_TIME_ZONE})::date`,
+          sql`coalesce(${t.payment.description}, '') not like ${`${REJECTED_NOTE_PREFIX}%`}`,
+        ),
+      );
 
     const invoices = await context.db
       .select({
@@ -71,8 +81,8 @@ const getAnalyticsData = createServerFn()
 
     const toSortedPoints = (totals: Map<string, number>) =>
       Array.from(totals.entries())
-        .map(([label, total]) => ({ label, total }))
-        .sort((a, b) => b.total - a.total);
+        .map(([label, total]) => ({ label, value: total }))
+        .sort((a, b) => b.value - a.value);
 
     return {
       vendorPoints: toSortedPoints(vendorTotals),

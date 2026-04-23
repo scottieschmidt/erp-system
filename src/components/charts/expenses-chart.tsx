@@ -1,17 +1,20 @@
-type ExpensePoint = {
+export type BarChartPoint = {
   label: string;
-  total: number;
+  value: number;
+  valueLabel?: string;
 };
 
-interface ExpensesChartProps {
-  points: ExpensePoint[];
+export interface BarChartProps {
+  points: BarChartPoint[];
   title?: string;
   description?: string;
   emptyMessage?: string;
+  valueFormatter?: (value: number, point: BarChartPoint) => string;
+  showZeroValues?: boolean;
 }
 
-export function ExpensesChart(props: ExpensesChartProps) {
-  const visiblePoints = props.points.filter((point) => point.total > 0);
+export function BarChart(props: BarChartProps) {
+  const visiblePoints = props.showZeroValues ? props.points : props.points.filter((point) => point.value > 0);
   const title = props.title ?? "Expenses";
   const description = props.description ?? "Grouped totals.";
   const emptyMessage = props.emptyMessage ?? "No data available yet.";
@@ -25,7 +28,7 @@ export function ExpensesChart(props: ExpensesChartProps) {
     );
   }
 
-  const maxTotal = Math.max(...visiblePoints.map((point) => point.total), 1);
+  const maxValue = Math.max(...visiblePoints.map((point) => point.value), 1);
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
@@ -34,25 +37,58 @@ export function ExpensesChart(props: ExpensesChartProps) {
 
       <div className="mt-4 space-y-3">
         {visiblePoints.map((point) => {
-          const widthPercent = Math.max((point.total / maxTotal) * 100, 2);
+          const widthPercent = (point.value / maxValue) * 100;
+          const isZeroValue = point.value <= 0;
+          const valueText =
+            point.valueLabel ??
+            props.valueFormatter?.(point.value, point) ??
+            point.value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
           return (
-            <div key={point.label} className="grid grid-cols-[minmax(120px,1.2fr)_1fr_auto] items-center gap-3">
+            <div
+              key={point.label}
+              className="grid grid-cols-[minmax(130px,220px)_minmax(0,1fr)_minmax(96px,120px)] items-center gap-3"
+            >
               <span className="truncate text-xs text-slate-300" title={point.label}>
                 {point.label}
               </span>
-              <div className="h-3 rounded-full bg-slate-800/90">
+              <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-800/90">
                 <div
-                  className="h-3 rounded-full bg-gradient-to-r from-rose-400 to-orange-400"
-                  style={{ width: `${widthPercent}%` }}
+                  className={
+                    isZeroValue
+                      ? "h-3 rounded-full bg-cyan-300/90"
+                      : "h-3 rounded-full bg-gradient-to-r from-rose-400 to-orange-400"
+                  }
+                  style={{
+                    width: isZeroValue && props.showZeroValues
+                      ? "10px"
+                      : `${Math.max(widthPercent, 0)}%`,
+                  }}
                 />
               </div>
-              <span className="text-right text-xs font-semibold tabular-nums text-slate-200">
-                ${point.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              <span className="justify-self-end text-right text-xs font-semibold tabular-nums text-slate-200">
+                {valueText}
               </span>
             </div>
           );
         })}
       </div>
     </div>
+  );
+}
+
+export interface ExpensesChartProps
+  extends Omit<BarChartProps, "valueFormatter"> {}
+
+export function ExpensesChart(props: ExpensesChartProps) {
+  return (
+    <BarChart
+      {...props}
+      valueFormatter={(value) =>
+        `$${value.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })}`
+      }
+    />
   );
 }
