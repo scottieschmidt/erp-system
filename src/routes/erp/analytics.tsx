@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, sql } from "drizzle-orm";
+import { useMemo, useState } from "react";
 
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
@@ -100,6 +101,34 @@ export const Route = createFileRoute("/erp/analytics")({
 
 function AnalyticsPage() {
   const data = Route.useLoaderData() as AnalyticsData;
+  const [selectionMode, setSelectionMode] = useState<"5" | "all" | "custom">("5");
+  const [customCountInput, setCustomCountInput] = useState("8");
+
+  const customCount = Math.max(1, Number.parseInt(customCountInput, 10) || 0);
+  const visibleCount =
+    selectionMode === "all"
+      ? Number.MAX_SAFE_INTEGER
+      : selectionMode === "custom"
+        ? customCount
+        : 5;
+
+  const vendorPoints = useMemo(
+    () => data.vendorPoints.slice(0, visibleCount),
+    [data.vendorPoints, visibleCount],
+  );
+  const accountPoints = useMemo(
+    () => data.accountPoints.slice(0, visibleCount),
+    [data.accountPoints, visibleCount],
+  );
+
+  const vendorTitle =
+    selectionMode === "all"
+      ? "All Vendors by Spend"
+      : `Top ${Math.min(vendorPoints.length, visibleCount)} Vendors by Spend`;
+  const accountTitle =
+    selectionMode === "all"
+      ? "All Account Codes by Spend"
+      : `Top ${Math.min(accountPoints.length, visibleCount)} Account Codes by Spend`;
 
   return (
     <DashboardLayout title="Analytics">
@@ -120,20 +149,83 @@ function AnalyticsPage() {
               <MetricCard label="Voucher count" value={data.voucherCount.toLocaleString()} />
             </div>
           </div>
+
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
+            <div>
+              <div className="text-sm font-semibold text-slate-100">Chart range</div>
+              <p className="mt-1 text-sm text-slate-400">
+                Show the top 5, every result, or a custom number of vendors and account codes.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectionMode("5")}
+                className={
+                  selectionMode === "5"
+                    ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
+                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+                }
+              >
+                Top 5
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectionMode("all")}
+                className={
+                  selectionMode === "all"
+                    ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
+                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+                }
+              >
+                All
+              </button>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  Custom X
+                </span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={customCountInput}
+                    onChange={(event) => {
+                      setCustomCountInput(event.target.value);
+                      setSelectionMode("custom");
+                    }}
+                    className="w-20 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 outline-none transition focus:border-cyan-300/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectionMode("custom")}
+                    className={
+                      selectionMode === "custom"
+                        ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
+                        : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+                    }
+                  >
+                    Use X
+                  </button>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <ExpensesChart
-            title="Spend by Vendor"
+            title={vendorTitle}
             description="Voucher allocations rolled up to the vendor tied to each invoice."
             emptyMessage="Create vouchers tied to invoices with vendors to populate this view."
-            points={data.vendorPoints}
+            points={vendorPoints}
           />
           <ExpensesChart
-            title="Spend by Account Code"
+            title={accountTitle}
             description="Voucher totals grouped by the payment account used when the voucher was created."
             emptyMessage="Create vouchers with account codes to populate this view."
-            points={data.accountPoints}
+            points={accountPoints}
           />
         </div>
       </section>
