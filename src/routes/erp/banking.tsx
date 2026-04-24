@@ -1,8 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { redirectIfSignedOut } from "#/lib/auth";
+import {
+  SandboxTransferEngine,
+  TransferError,
+  type TransferRequest,
+  ZeroFeeTransferPolicy,
+} from "#/lib/banking/transfer";
 
 type SandboxAccount = {
   id: string;
@@ -23,6 +29,11 @@ type SandboxTransaction = {
   amount: number;
   status: "matched" | "review" | "unmatched";
   suggestedMatch?: string;
+};
+
+type TransferNotice = {
+  kind: "success" | "error";
+  message: string;
 };
 
 const SANDBOX_ACCOUNTS: SandboxAccount[] = [
@@ -107,36 +118,95 @@ export const Route = createFileRoute("/erp/banking")({
 });
 
 function BankingPage() {
+  const [accounts, setAccounts] = useState<SandboxAccount[]>(SANDBOX_ACCOUNTS);
+  const [transactions, setTransactions] = useState<SandboxTransaction[]>(SANDBOX_TRANSACTIONS);
   const [selectedAccountId, setSelectedAccountId] = useState<string>(SANDBOX_ACCOUNTS[0]?.id ?? "");
   const [statusFilter, setStatusFilter] = useState<"all" | SandboxTransaction["status"]>("all");
+  const [transferFromAccountId, setTransferFromAccountId] = useState<string>(SANDBOX_ACCOUNTS[0]?.id ?? "");
+  const [transferToAccountId, setTransferToAccountId] = useState<string>(
+    SANDBOX_ACCOUNTS[1]?.id ?? SANDBOX_ACCOUNTS[0]?.id ?? "",
+  );
+  const [transferAmount, setTransferAmount] = useState<string>("100");
+  const [transferMemo, setTransferMemo] = useState<string>("");
+  const [transferNotice, setTransferNotice] = useState<TransferNotice | null>(null);
+
+  const transferEngine = useMemo(() => {
+    let nextTransferId = SANDBOX_TRANSACTIONS.length + 1;
+
+    return new SandboxTransferEngine<SandboxAccount>({
+      feePolicy: new ZeroFeeTransferPolicy(),
+      now: () => new Date(),
+      createTransferId: () => `txn-${String(nextTransferId++).padStart(3, "0")}`,
+    });
+  }, []);
 
   const selectedAccount =
-    SANDBOX_ACCOUNTS.find((account) => account.id === selectedAccountId) ?? SANDBOX_ACCOUNTS[0];
+    accounts.find((account) => account.id === selectedAccountId) ?? accounts[0];
 
   const visibleTransactions = useMemo(
     () =>
-      SANDBOX_TRANSACTIONS.filter((transaction) => {
+      transactions.filter((transaction) => {
         if (transaction.accountId !== selectedAccount?.id) return false;
         if (statusFilter === "all") return true;
         return transaction.status === statusFilter;
       }),
-    [selectedAccount?.id, statusFilter],
+    [selectedAccount?.id, statusFilter, transactions],
   );
 
   const summary = useMemo(() => {
-    const allChecking = SANDBOX_ACCOUNTS.reduce(
+    const allChecking = accounts.reduce(
       (sum, account) => sum + account.currentBalance,
       0,
     );
-    const unmatchedCount = SANDBOX_TRANSACTIONS.filter(
+    const unmatchedCount = transactions.filter(
       (transaction) => transaction.status === "unmatched",
     ).length;
-    const reviewCount = SANDBOX_TRANSACTIONS.filter(
+    const reviewCount = transactions.filter(
       (transaction) => transaction.status === "review",
     ).length;
 
     return { allChecking, unmatchedCount, reviewCount };
-  }, []);
+  }, [accounts, transactions]);
+
+  const canSubmitTransfer =
+    accounts.length > 1 &&
+    transferFromAccountId.length > 0 &&
+    transferToAccountId.length > 0 &&
+    transferFromAccountId !== transferToAccountId &&
+    Number(transferAmount) > 0;
+
+  function handleTransferSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const request: TransferRequest = {
+      fromAccountId: transferFromAccountId,
+      toAccountId: transferToAccountId,
+      amount: Number(transferAmount),
+      memo: transferMemo.trim() || undefined,
+    };
+
+    try {
+      const result = transferEngine.transfer(accounts, request);
+      const transferEntries: SandboxTransaction[] = result.ledgerEntries.map((entry) => ({ ...entry }));
+
+      setAccounts(result.updatedAccounts);
+      setTransactions((current) => [...transferEntries, ...current]);
+      setStatusFilter("all");
+      setSelectedAccountId(request.fromAccountId);
+      setTransferAmount("");
+      setTransferMemo("");
+      setTransferNotice({
+        kind: "success",
+        message: `Transferred $${result.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} from ${transferFromAccountId} to ${transferToAccountId}.`,
+      });
+    } catch (error) {
+      const message =
+        error instanceof TransferError
+          ? error.message
+          : "Unable to complete the sandbox transfer.";
+      setTransferNotice({ kind: "error", message });
+    }
+  }
 
   return (
     <DashboardLayout title="Banking">
@@ -178,7 +248,7 @@ function BankingPage() {
               </p>
 
               <div className="mt-4 space-y-3">
-                {SANDBOX_ACCOUNTS.map((account) => {
+                {accounts.map((account) => {
                   const active = account.id === selectedAccount?.id;
                   return (
                     <button
@@ -209,6 +279,94 @@ function BankingPage() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
+              <h3 className="text-lg font-semibold">Sandbox transfer</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Move fake money between demo accounts using constructor, interface, and abstract-class
+                transfer logic.
+              </p>
+
+              <form className="mt-4 space-y-3" onSubmit={handleTransferSubmit}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm">
+                    <span className="text-slate-300">From account</span>
+                    <select
+                      value={transferFromAccountId}
+                      onChange={(event) => setTransferFromAccountId(event.target.value)}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none"
+                    >
+                      {accounts.map((account) => (
+                        <option key={`from-${account.id}`} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="text-slate-300">To account</span>
+                    <select
+                      value={transferToAccountId}
+                      onChange={(event) => setTransferToAccountId(event.target.value)}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none"
+                    >
+                      {accounts.map((account) => (
+                        <option key={`to-${account.id}`} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-[0.6fr_1.4fr]">
+                  <label className="text-sm">
+                    <span className="text-slate-300">Amount</span>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={transferAmount}
+                      onChange={(event) => setTransferAmount(event.target.value)}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                      placeholder="0.00"
+                    />
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="text-slate-300">Memo (optional)</span>
+                    <input
+                      type="text"
+                      value={transferMemo}
+                      onChange={(event) => setTransferMemo(event.target.value)}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
+                      placeholder="Payroll allocation"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmitTransfer}
+                  className="rounded-xl border border-cyan-300/40 bg-cyan-400/15 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Execute fake transfer
+                </button>
+              </form>
+
+              <div
+                className={`mt-3 rounded-xl border px-3 py-2 text-sm ${
+                  transferNotice?.kind === "error"
+                    ? "border-rose-400/30 bg-rose-500/10 text-rose-200"
+                    : transferNotice?.kind === "success"
+                      ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                      : "border-white/10 bg-slate-950/40 text-slate-400"
+                }`}
+              >
+                {transferNotice?.message ?? "Sandbox only: this does not move real funds."}
               </div>
             </div>
 
