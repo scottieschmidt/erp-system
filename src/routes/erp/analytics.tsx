@@ -1,18 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardLayout } from "#/components/layout/dashboard";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import { t } from "#/lib/server/database";
-import { ExpensesChart, type BarChartPoint } from "#/components/charts/expenses-chart";
+import { ExpensesChart } from "#/components/charts/expenses-chart";
 import { BUSINESS_TIME_ZONE, REJECTED_NOTE_PREFIX } from "#/lib/voucher";
 
 type AnalyticsData = {
-  vendorPoints: BarChartPoint[];
-  accountPoints: BarChartPoint[];
+  invoiceAllocations: {
+    vendorLabel: string;
+    accountLabel: string;
+    amount: number;
+  }[];
   totalSpend: number;
   voucherCount: number;
 };
@@ -57,35 +60,35 @@ const getAnalyticsData = createServerFn()
       .select({
         invoice_id: t.invoices.invoice_id,
         vendor_name: t.vendor.vendor_name,
+        account_name: t.gl_accounts.account_name,
       })
       .from(t.invoices)
       .leftJoin(t.vendor, eq(t.invoices.vendor_id, t.vendor.vendor_id))
+      .leftJoin(t.gl_accounts, eq(t.invoices.account_id, t.gl_accounts.account_id))
       .where(eq(t.invoices.user_id, context.auth.profile.user_id));
 
     const invoiceVendorMap = new Map(
       invoices.map((invoice) => [Number(invoice.invoice_id), invoice.vendor_name ?? "Unassigned vendor"]),
     );
+    const invoiceAccountMap = new Map(
+      invoices.map((invoice) => [Number(invoice.invoice_id), invoice.account_name ?? "Unassigned account"]),
+    );
 
-    const accountTotals = new Map<string, number>();
-    payments.forEach((payment) => {
-      const label = `Account ${payment.account_id}`;
-      accountTotals.set(label, (accountTotals.get(label) ?? 0) + Number(payment.total_amount));
-    });
-
-    const vendorTotals = new Map<string, number>();
+    const invoiceAllocations: AnalyticsData["invoiceAllocations"] = [];
     paymentInvoices.forEach((row) => {
       const vendorName = invoiceVendorMap.get(Number(row.invoice_id)) ?? "Unassigned vendor";
-      vendorTotals.set(vendorName, (vendorTotals.get(vendorName) ?? 0) + Number(row.amount_paid));
+      const amountPaid = Number(row.amount_paid);
+
+      const accountName = invoiceAccountMap.get(Number(row.invoice_id)) ?? "Unassigned account";
+      invoiceAllocations.push({
+        vendorLabel: vendorName,
+        accountLabel: accountName,
+        amount: amountPaid,
+      });
     });
 
-    const toSortedPoints = (totals: Map<string, number>) =>
-      Array.from(totals.entries())
-        .map(([label, total]) => ({ label, value: total }))
-        .sort((a, b) => b.value - a.value);
-
     return {
-      vendorPoints: toSortedPoints(vendorTotals),
-      accountPoints: toSortedPoints(accountTotals),
+      invoiceAllocations,
       totalSpend: payments.reduce((sum, payment) => sum + Number(payment.total_amount), 0),
       voucherCount: payments.length,
     } satisfies AnalyticsData;
@@ -101,39 +104,107 @@ export const Route = createFileRoute("/erp/analytics")({
 
 function AnalyticsPage() {
   const data = Route.useLoaderData() as AnalyticsData;
-  const [selectionMode, setSelectionMode] = useState<"5" | "all" | "custom">("5");
-  const [customCountInput, setCustomCountInput] = useState("8");
+  const [rangeMode, setRangeMode] = useState<"5" | "all">("5");
+  const [vendorSearchText, setVendorSearchText] = useState("");
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const vendorDropdownRef = useRef<HTMLDivElement | null>(null);
+  const visibleCount = rangeMode === "all" ? Number.MAX_SAFE_INTEGER : 5;
 
-  const customCount = Math.max(1, Number.parseInt(customCountInput, 10) || 0);
-  const visibleCount =
-    selectionMode === "all"
-      ? Number.MAX_SAFE_INTEGER
-      : selectionMode === "custom"
-        ? customCount
-        : 5;
+  const allVendorLabels = useMemo(() => {
+    const labelSet = new Set<string>();
+    data.invoiceAllocations.forEach((allocation) => {
+      labelSet.add(allocation.vendorLabel);
+    });
+    return Array.from(labelSet).sort((a, b) => a.localeCompare(b));
+  }, [data.invoiceAllocations]);
+
+  const filteredVendorOptions = useMemo(() => {
+    const search = vendorSearchText.trim().toLowerCase();
+    if (!search) {
+      return allVendorLabels;
+    }
+    return allVendorLabels.filter((label) => label.toLowerCase().includes(search));
+  }, [allVendorLabels, vendorSearchText]);
+
+  const selectedVendorSet = useMemo(() => new Set(selectedVendors), [selectedVendors]);
+
+  const filteredAllocations = useMemo(() => {
+    if (selectedVendors.length === 0) {
+      return data.invoiceAllocations;
+    }
+    return data.invoiceAllocations.filter((allocation) => selectedVendorSet.has(allocation.vendorLabel));
+  }, [data.invoiceAllocations, selectedVendorSet, selectedVendors.length]);
+
+  const vendorSortedPoints = useMemo(() => {
+    const totals = new Map<string, number>();
+    filteredAllocations.forEach((allocation) => {
+      totals.set(
+        allocation.vendorLabel,
+        (totals.get(allocation.vendorLabel) ?? 0) + allocation.amount,
+      );
+    });
+    return Array.from(totals.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredAllocations]);
+
+  const accountSortedPoints = useMemo(() => {
+    const totals = new Map<string, number>();
+    filteredAllocations.forEach((allocation) => {
+      totals.set(
+        allocation.accountLabel,
+        (totals.get(allocation.accountLabel) ?? 0) + allocation.amount,
+      );
+    });
+    return Array.from(totals.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredAllocations]);
 
   const vendorPoints = useMemo(
-    () => data.vendorPoints.slice(0, visibleCount),
-    [data.vendorPoints, visibleCount],
+    () => vendorSortedPoints.slice(0, visibleCount),
+    [vendorSortedPoints, visibleCount],
   );
   const accountPoints = useMemo(
-    () => data.accountPoints.slice(0, visibleCount),
-    [data.accountPoints, visibleCount],
+    () => accountSortedPoints.slice(0, visibleCount),
+    [accountSortedPoints, visibleCount],
   );
 
-  const vendorTitle =
-    selectionMode === "all"
-      ? "All Vendors by Spend"
-      : `Top ${Math.min(vendorPoints.length, visibleCount)} Vendors by Spend`;
+  const vendorTitle = rangeMode === "all" ? "All Vendors by Spend" : "Top 5 Vendors by Spend";
   const accountTitle =
-    selectionMode === "all"
-      ? "All Account Codes by Spend"
-      : `Top ${Math.min(accountPoints.length, visibleCount)} Account Codes by Spend`;
+    selectedVendors.length > 0
+      ? rangeMode === "all"
+        ? "All Selected Account Names by Spend"
+        : "Top 5 Selected Account Names by Spend"
+      : rangeMode === "all"
+        ? "All Account Names by Spend"
+        : "Top 5 Account Names by Spend";
+
+  const toggleVendor = (label: string) => {
+    setSelectedVendors((prev) =>
+      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label],
+    );
+  };
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (!vendorDropdownRef.current) return;
+      if (!vendorDropdownRef.current.contains(event.target as Node)) {
+        setVendorDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, []);
 
   return (
     <DashboardLayout title="Analytics">
       <section className="space-y-5">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
+        <div className="relative z-40 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_18px_70px_rgba(15,23,42,0.55)] backdrop-blur">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <div className="inline-flex rounded-full border border-white/15 px-3 py-1 text-xs tracking-[0.1em] text-slate-300">
@@ -150,71 +221,119 @@ function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-wrap items-end justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
-            <div>
-              <div className="text-sm font-semibold text-slate-100">Chart range</div>
-              <p className="mt-1 text-sm text-slate-400">
-                Show the top 5, every result, or a custom number of vendors and account codes.
-              </p>
-            </div>
+          <div className="mt-6 space-y-3 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-100">Vendor filter</div>
+                <p className="mt-1 text-sm text-slate-400">
+                  Choose top 5 or all, then search and select one or more vendors.
+                </p>
+              </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectionMode("5")}
-                className={
-                  selectionMode === "5"
-                    ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
-                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
-                }
-              >
-                Top 5
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectionMode("all")}
-                className={
-                  selectionMode === "all"
-                    ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
-                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
-                }
-              >
-                All
-              </button>
-              <label className="flex flex-col gap-1">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  Custom X
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={customCountInput}
-                    onChange={(event) => {
-                      setCustomCountInput(event.target.value);
-                      setSelectionMode("custom");
-                    }}
-                    className="w-20 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-slate-100 outline-none transition focus:border-cyan-300/40"
-                  />
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRangeMode("5")}
+                  className={
+                    rangeMode === "5"
+                      ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-xs font-semibold text-cyan-100"
+                      : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+                  }
+                >
+                  Top 5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRangeMode("all")}
+                  className={
+                    rangeMode === "all"
+                      ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-xs font-semibold text-cyan-100"
+                      : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
+                  }
+                >
+                  All
+                </button>
+                <div ref={vendorDropdownRef} className="relative z-50 min-w-[260px] flex-1">
                   <button
                     type="button"
-                    onClick={() => setSelectionMode("custom")}
-                    className={
-                      selectionMode === "custom"
-                        ? "rounded-full border border-cyan-300/40 bg-cyan-400/15 px-4 py-2 text-sm font-semibold text-cyan-100"
-                        : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/20 hover:text-white"
-                    }
+                    onClick={() => setVendorDropdownOpen((prev) => !prev)}
+                    className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 text-left text-sm text-slate-100 transition hover:border-white/20"
                   >
-                    Use X
+                    <span className="truncate">
+                      {selectedVendors.length === 0
+                        ? "Search vendor"
+                        : `${selectedVendors.length} vendor(s) selected`}
+                    </span>
+                    <span className="text-slate-400">{vendorDropdownOpen ? "▲" : "▼"}</span>
                   </button>
+
+                  {vendorDropdownOpen ? (
+                    <div className="absolute z-30 mt-2 w-full rounded-xl border border-white/15 bg-slate-950 p-3 shadow-2xl">
+                      <input
+                        type="text"
+                        value={vendorSearchText}
+                        onChange={(event) => setVendorSearchText(event.target.value)}
+                        placeholder="Search vendor..."
+                        className="w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40"
+                      />
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVendors(allVendorLabels)}
+                          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-white/20"
+                        >
+                          Select all
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVendors([])}
+                          className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-white/20"
+                        >
+                          Clear
+                        </button>
+                      </div>
+
+                      <div className="mt-3 max-h-52 overflow-y-auto rounded-lg border border-white/10 bg-slate-950/40 p-2">
+                        {filteredVendorOptions.length === 0 ? (
+                          <p className="px-2 py-2 text-sm text-slate-400">No vendor found.</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {filteredVendorOptions.map((label) => (
+                              <li key={label}>
+                                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 transition hover:bg-white/5">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedVendorSet.has(label)}
+                                    onChange={() => toggleVendor(label)}
+                                    className="h-4 w-4 rounded border-white/20 bg-slate-900"
+                                  />
+                                  <span className="truncate">{label}</span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </label>
+              </div>
+              </div>
             </div>
+
+            <p className="text-xs text-slate-400">
+              {selectedVendors.length === 0
+                ? rangeMode === "all"
+                  ? "Showing all vendors."
+                  : "Showing top 5 vendors."
+                : `Showing ${Math.min(vendorPoints.length, selectedVendors.length)} selected vendor(s) in current range.`}
+            </p>
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="relative z-0 grid gap-4 xl:grid-cols-2">
           <ExpensesChart
             title={vendorTitle}
             description="Voucher allocations rolled up to the vendor tied to each invoice."
@@ -223,7 +342,7 @@ function AnalyticsPage() {
           />
           <ExpensesChart
             title={accountTitle}
-            description="Voucher totals grouped by the payment account used when the voucher was created."
+            description="Voucher allocations grouped by invoice account names."
             emptyMessage="Create vouchers with account codes to populate this view."
             points={accountPoints}
           />
