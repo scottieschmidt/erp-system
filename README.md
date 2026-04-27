@@ -117,7 +117,16 @@ Here are the tables, columns and connections in Supabase:
 
 ### White-box Test Section
 
-White-box algorithm: `PaymentService.createVoucherPayment()` in `src/lib/payment/payment-service.ts`.
+White-box algorithm: `SandboxTransferEngine.transfer()` in `src/lib/banking/transfer.ts`.
+
+White-box test file: `src/lib/banking/transfer.test.ts`.
+
+The test covers the main decision paths of the transfer method:
+
+- valid transfer with zero fee
+- valid transfer with transfer fee
+- transfer fails when funds are insufficient
+- transfer fails when source and destination accounts are the same
 
 Main branches:
 1. `if (!invoiceIds.length)`
