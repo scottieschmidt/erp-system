@@ -274,3 +274,99 @@ You can learn more about all of the offerings from TanStack in the [TanStack doc
 For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
 
 ![ERP Database Diagram](./images/SupabaseERD.png)
+---
+
+## Testing Deliverables (Added for Final Rubric)
+
+### Formal Test Plan Table
+
+| Class/Method | Test Type | Requirement Tested | Mock Used | Expected Result |
+|---|---|---|---|---|
+| `VendorService.createVendor()` | Black-box unit | `RQ-VEN-01`: Reject blank vendor name | `FakeVendorRepository` | Throws `Vendor name is required.` |
+| `VendorService.createVendor()` | Black-box unit | `RQ-VEN-02`: Create vendor with normalized address | `FakeVendorRepository` | Returns `created=true`, address assembled correctly |
+| `VendorService.createVendor()` | Black-box unit | `RQ-VEN-03`: Prevent duplicate vendor insert by name | `FakeVendorRepository` | Returns existing vendor, `created=false` |
+| `InvoiceService.calculateTotals()` | Black-box unit | `RQ-INV-01`: Compute subtotal/tax/total from line items | None | Correct monetary totals returned |
+| `InvoiceService.validateLineItems()` | Black-box unit | `RQ-INV-02`: Validate invalid line items | None | Returns descriptive validation errors |
+| `InvoiceApplicationService.createInvoiceForUser()` | Black-box unit | `RQ-INV-03`: Persist invoice using computed total only | `FakeInvoiceRepository` | Repository receives computed `amount` |
+| `PaymentService.createVoucherPayment()` | Black-box unit | `RQ-PAY-01`: Fail when no invoices selected | `FakePaymentRepository` | Throws `No invoices selected.` |
+| `PaymentService.createVoucherPayment()` | Black-box unit | `RQ-PAY-02`: Fail when invoice missing/already paid | `FakePaymentRepository` | Throws missing/already-paid invoice error |
+| `PaymentService.createVoucherPayment()` | Black-box unit | `RQ-PAY-03`: Successful voucher/payment creation and invoice paid update | `FakePaymentRepository` | Payment created, links inserted, invoices marked paid |
+
+### Core Production Class Coverage
+
+| Core Class | Covered by Tests | Test File |
+|---|---|---|
+| `VendorService` | Yes | `src/tests/vendor-service.test.ts` |
+| `InvoiceService` | Yes | `src/tests/invoice-service.test.ts` |
+| `InvoiceApplicationService` | Yes | `src/tests/invoice-service.test.ts` |
+| `PaymentService` | Yes | `src/tests/payment-service.test.ts` |
+
+### Black-box Unit Test Descriptions (Requirement Traceability)
+
+- `RQ-VEN-01`: Vendor name cannot be blank; whitespace input fails.
+- `RQ-VEN-02`: Valid vendor input creates a normalized address and returns `created=true`.
+- `RQ-VEN-03`: Existing vendor name returns existing row (`created=false`) instead of reinserting.
+- `RQ-INV-01`: Invoice totals are correctly computed from line items.
+- `RQ-INV-02`: Invalid line-item fields return clear validation errors.
+- `RQ-INV-03`: Invoice persistence uses computed total amount.
+- `RQ-PAY-01`: Voucher creation fails when no invoices are selected.
+- `RQ-PAY-02`: Missing or already-paid invoices are rejected.
+- `RQ-PAY-03`: Successful voucher flow creates payment, links invoices, and updates paid status.
+
+### White-box Test Section
+
+White-box algorithm: `PaymentService.createVoucherPayment()` in `src/lib/payment/payment-service.ts`.
+
+Main branches:
+1. `if (!invoiceIds.length)`
+2. `if (!input.accountId || !input.paymentDate || !payType)`
+3. `if (!ALLOWED_PAY_TYPES.has(payType))`
+4. `if (!invoiceRows.length)`
+5. `if (missingOrPaidIds.length)`
+6. `if (accountMismatch)`
+7. `if (shouldMarkInvoicesPaidNow(input.paymentDate))`
+
+### CFG Diagram (Payment Voucher Algorithm)
+
+```mermaid
+flowchart TD
+  A[Start createVoucherPayment] --> B{Any invoice IDs?}
+  B -- No --> E1[Throw No invoices selected]
+  B -- Yes --> C{Required fields present?}
+  C -- No --> E2[Throw Missing required payment data]
+  C -- Yes --> D{Pay type allowed?}
+  D -- No --> E3[Throw Invalid payment type]
+  D -- Yes --> F[Begin transaction]
+  F --> G[Load unpaid invoices]
+  G --> H{Any unpaid invoices loaded?}
+  H -- No --> E4[Throw No valid unpaid invoices]
+  H -- Yes --> I{Any missing/already-paid IDs?}
+  I -- Yes --> E5[Throw missing/already-paid error]
+  I -- No --> J{Account matches all invoices?}
+  J -- No --> E6[Throw account mismatch]
+  J -- Yes --> K[Calculate total + create payment + link invoices]
+  K --> L{Payment date <= today?}
+  L -- Yes --> M[Mark invoices paid]
+  L -- No --> N[Sync invoice paid status]
+  M --> O[Return success result]
+  N --> O
+```
+
+### Cyclomatic Complexity
+
+For `PaymentService.createVoucherPayment()`:
+
+- Decision points = 7
+- `V(G) = D + 1 = 7 + 1 = 8`
+
+### Independent Paths
+
+- `P1`: No invoice IDs -> error
+- `P2`: Invoice IDs present but required fields missing -> error
+- `P3`: Invalid pay type -> error
+- `P4`: No unpaid invoice rows -> error
+- `P5`: Missing/already-paid IDs detected -> error
+- `P6`: Account mismatch -> error
+- `P7`: Success path with `paymentDate <= today` -> mark paid -> success
+- `P8`: Success path with `paymentDate > today` -> sync status -> success
+
