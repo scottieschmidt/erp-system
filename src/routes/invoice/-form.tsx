@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import * as v from "valibot";
 
 import { FieldError } from "#/components/form";
+import { InvoiceService } from "#/lib/invoice/invoice-service";
 import { IntStrSchema, MoneySchema } from "#/lib/validation";
 
 const PositiveMoneySchema = v.pipe(
@@ -113,29 +114,8 @@ function formatMoneyInput(value: string): string {
   return (cents / 100).toFixed(2);
 }
 
-function getLineItemErrors(item: LineItem): string[] {
-  const errors: string[] = [];
-
-  if (!item.description.trim()) {
-    errors.push("Description is required.");
-  }
-
-  if (item.quantity <= 0) {
-    errors.push("Quantity must be greater than 0.");
-  }
-
-  if (item.price < 0) {
-    errors.push("Price cannot be negative.");
-  }
-
-  if (item.tax_rate < 0 || item.tax_rate > 100) {
-    errors.push("Tax rate must be between 0 and 100.");
-  }
-
-  return errors;
-}
-
 export function InvoiceForm(props: InvoiceFormProps) {
+  const invoiceService = useMemo(() => new InvoiceService(), []);
   const [lineItems, setLineItems] = useState<LineItem[]>(() =>
     props.initialLineItems?.length
       ? props.initialLineItems.map((item) => ({
@@ -151,20 +131,8 @@ export function InvoiceForm(props: InvoiceFormProps) {
   const [priceInputsById, setPriceInputsById] = useState<Record<string, string>>({});
 
   const totals = useMemo(() => {
-    const subtotal = lineItems.reduce(
-      (sum, item) => sum + item.quantity * item.price,
-      0,
-    );
-
-    const tax = lineItems.reduce(
-      (sum, item) => sum + item.quantity * item.price * (item.tax_rate / 100),
-      0,
-    );
-
-    const total = subtotal + tax;
-
-    return { subtotal, tax, total };
-  }, [lineItems]);
+    return invoiceService.calculateTotals(lineItems);
+  }, [invoiceService, lineItems]);
 
   const calculatedTotalCents = useMemo(() => toCents(totals.total) ?? 0, [totals.total]);
   const calculatedTotalText = useMemo(
@@ -174,10 +142,10 @@ export function InvoiceForm(props: InvoiceFormProps) {
   const lineItemErrorsById = useMemo(() => {
     const errors = new Map<string, string[]>();
     lineItems.forEach((item) => {
-      errors.set(item.id, getLineItemErrors(item));
+      errors.set(item.id, invoiceService.getLineItemErrors(item));
     });
     return errors;
-  }, [lineItems]);
+  }, [invoiceService, lineItems]);
   const lineItemErrorSummaries = useMemo(
     () =>
       lineItems.flatMap((item, index) =>

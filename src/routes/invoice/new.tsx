@@ -6,10 +6,6 @@ import { useState } from "react";
 import { MustAuthenticate, redirectIfSignedOut } from "#/lib/auth";
 import { DatabaseProvider } from "#/lib/provider";
 import {
-  createInvoiceWithItemsForUser,
-  listInvoiceFormOptions,
-} from "#/lib/server/database/invoice-service";
-import {
   SESSION_TIMEOUT_RULES,
   useSessionTimeoutTracker,
 } from "#/lib/session-timeout";
@@ -29,19 +25,29 @@ const createInvoice = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
   .inputValidator(DataSchema)
   .handler(async ({ data, context }) => {
-    const { line_items, ...invoiceValues } = data;
-    return await createInvoiceWithItemsForUser(
-      context.db,
-      context.auth.profile.user_id,
-      invoiceValues,
-      line_items,
-      formatDate(new Date()),
-    );
+    const { line_items, amount: _amountFromForm, ...invoiceValues } = data;
+    const { DrizzleInvoiceRepository } = await import("#/lib/invoice/invoice-repository");
+    const { InvoiceApplicationService } = await import("#/lib/invoice/invoice-app-service");
+    const repository = new DrizzleInvoiceRepository(context.db);
+    const service = new InvoiceApplicationService(repository);
+
+    return await service.createInvoiceForUser({
+      userId: context.auth.profile.user_id,
+      values: invoiceValues,
+      lineItems: line_items,
+      createdDate: formatDate(new Date()),
+    });
   });
 
 const listFormOptions = createServerFn()
   .middleware([DatabaseProvider, MustAuthenticate])
-  .handler(async ({ context }) => await listInvoiceFormOptions(context.db));
+  .handler(async ({ context }) => {
+    const { DrizzleInvoiceRepository } = await import("#/lib/invoice/invoice-repository");
+    const { InvoiceApplicationService } = await import("#/lib/invoice/invoice-app-service");
+    const repository = new DrizzleInvoiceRepository(context.db);
+    const service = new InvoiceApplicationService(repository);
+    return await service.listFormOptions();
+  });
 
 function NewInvoicePage() {
   const router = useRouter();
