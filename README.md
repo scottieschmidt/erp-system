@@ -121,7 +121,7 @@ White-box algorithm: `SandboxTransferEngine.transfer()` in `src/lib/banking/tran
 
 White-box test file: `src/lib/banking/transfer.test.ts`.
 
-The test covers the main decision paths of the transfer method:
+This test covers the main decision paths of the transfer method:
 
 - valid transfer with zero fee
 - valid transfer with transfer fee
