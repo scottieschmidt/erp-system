@@ -192,6 +192,12 @@ function Dashboard() {
       const key = normalizeDateKey(voucher.payment_date);
       if (!key) return;
       if (!key.startsWith(currentMonthKey)) return;
+      const status = getVoucherStatus({
+        paymentDate: voucher.payment_date,
+        description: voucher.description,
+        todayKey,
+      });
+      if (status === "rejected") return;
       const amount = Number(voucher.total_amount ?? 0);
       dailyTotals.set(key, (dailyTotals.get(key) ?? 0) + amount);
     });
@@ -213,7 +219,7 @@ function Dashboard() {
     }
 
     return points;
-  }, [vouchers]);
+  }, [todayKey, vouchers]);
 
   return (
     <DashboardLayout title="Finance Control Center">
@@ -302,7 +308,7 @@ function Dashboard() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 className="rounded-lg border border-white/15 px-3 py-2 text-sm text-slate-100 transition hover:border-white/25"
-                onClick={() => navigate({ to: "/erp/invoice" })}
+                onClick={() => navigate({ to: "/invoice/new" })}
               >
                 New Invoice
               </button>
