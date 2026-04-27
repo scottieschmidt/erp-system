@@ -51,7 +51,7 @@ This is the “bain” of the application that contains business logic, rules, a
 - Component 4: CreateInvoice
 - Component 5: CreateUser
 - Component 6: getVendors
--Component 7: Login and Logout
+- Component 7: Login and Logout
 
 ## Layer 3: Data Layer
 - Component 6: Supabase Database 
