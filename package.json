@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "npm run build && vite preview",
     "test": "vitest run src/tests",
-    "deploy": "npm run lint && npm run build && wrangler deploy",
+    "deploy": "npm run lint && npm run build && wrangler deploy --name erp-system",
     "fmt": "oxfmt",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
